@@ -17,7 +17,7 @@ import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ArrowLeft, Calendar, Users, Music, Plus, Trash2, 
-  GripVertical, ExternalLink, Star, FileText, X
+  ChevronUp, ChevronDown, ExternalLink, Star, FileText, X
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -338,6 +338,40 @@ export default function EscalaDetail() {
     }
   };
 
+  const handleMoveMusic = async (escalaMusica: EscalaMusica, direction: 'up' | 'down') => {
+    const currentIndex = musicas.findIndex(m => m.id === escalaMusica.id);
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    
+    if (newIndex < 0 || newIndex >= musicas.length) return;
+    
+    const otherMusica = musicas[newIndex];
+    
+    try {
+      // Swap the ordem values
+      const { error: error1 } = await supabase
+        .from('escala_musicas')
+        .update({ ordem: newIndex })
+        .eq('id', escalaMusica.id);
+      
+      if (error1) throw error1;
+      
+      const { error: error2 } = await supabase
+        .from('escala_musicas')
+        .update({ ordem: currentIndex })
+        .eq('id', otherMusica.id);
+      
+      if (error2) throw error2;
+      
+      fetchEscalaData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusBadge = () => {
     if (!escala) return null;
     const date = new Date(escala.data + 'T00:00:00');
@@ -622,6 +656,30 @@ export default function EscalaDetail() {
                       key={item.id}
                       className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group"
                     >
+                      {isAdmin && (
+                        <div className="flex flex-col gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            disabled={index === 0}
+                            onClick={() => handleMoveMusic(item, 'up')}
+                            title="Mover para cima"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5"
+                            disabled={index === musicas.length - 1}
+                            onClick={() => handleMoveMusic(item, 'down')}
+                            title="Mover para baixo"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
                       <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary shrink-0">
                         {index + 1}
                       </span>
