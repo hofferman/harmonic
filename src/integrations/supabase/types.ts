@@ -153,6 +153,7 @@ export type Database = {
           artista: string | null
           created_at: string
           id: string
+          letra: string | null
           link: string | null
           titulo: string
           tom: string | null
@@ -161,6 +162,7 @@ export type Database = {
           artista?: string | null
           created_at?: string
           id?: string
+          letra?: string | null
           link?: string | null
           titulo: string
           tom?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           artista?: string | null
           created_at?: string
           id?: string
+          letra?: string | null
           link?: string | null
           titulo?: string
           tom?: string | null

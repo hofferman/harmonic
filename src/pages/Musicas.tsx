@@ -6,11 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Music, Plus, Trash2, ExternalLink, Edit2 } from 'lucide-react';
+import { Music, Plus, Trash2, ExternalLink, Edit2, FileText, X } from 'lucide-react';
 
 interface Musica {
   id: string;
@@ -18,6 +20,7 @@ interface Musica {
   artista: string | null;
   tom: string | null;
   link: string | null;
+  letra: string | null;
   created_at: string;
 }
 
@@ -38,6 +41,12 @@ export default function Musicas() {
   const [tom, setTom] = useState('');
   const [link, setLink] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Letra dialog state
+  const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
+  const [letraMusica, setLetraMusica] = useState<Musica | null>(null);
+  const [letra, setLetra] = useState('');
+  const [isSavingLetra, setIsSavingLetra] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -88,6 +97,12 @@ export default function Musicas() {
     setIsDialogOpen(true);
   };
 
+  const openLetraDialog = (musica: Musica) => {
+    setLetraMusica(musica);
+    setLetra(musica.letra || '');
+    setIsLetraDialogOpen(true);
+  };
+
   const handleSave = async () => {
     if (!titulo.trim()) {
       toast({
@@ -131,6 +146,32 @@ export default function Musicas() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveLetra = async () => {
+    if (!letraMusica) return;
+
+    setIsSavingLetra(true);
+    try {
+      const { error } = await supabase
+        .from('musicas')
+        .update({ letra: letra.trim() || null })
+        .eq('id', letraMusica.id);
+
+      if (error) throw error;
+      
+      toast({ title: 'Letra/cifra salva!' });
+      setIsLetraDialogOpen(false);
+      fetchMusicas();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingLetra(false);
     }
   };
 
@@ -231,7 +272,15 @@ export default function Musicas() {
                         <Music className="w-6 h-6 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{musica.titulo}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{musica.titulo}</h3>
+                          {musica.letra && (
+                            <Badge variant="secondary" className="shrink-0">
+                              <FileText className="w-3 h-3 mr-1" />
+                              Cifra
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground truncate">
                           {musica.artista || 'Artista desconhecido'}
                           {musica.tom && ` • Tom: ${musica.tom}`}
@@ -239,6 +288,14 @@ export default function Musicas() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => openLetraDialog(musica)}
+                        title="Editar letra/cifra"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
                       {musica.link && (
                         <Button variant="ghost" size="icon" asChild>
                           <a href={musica.link} target="_blank" rel="noopener noreferrer">
@@ -265,7 +322,7 @@ export default function Musicas() {
           )}
         </div>
 
-        {/* Dialog */}
+        {/* Edit Music Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -320,6 +377,51 @@ export default function Musicas() {
               >
                 {isSaving ? 'Salvando...' : editingMusica ? 'Salvar Alterações' : 'Cadastrar Música'}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Letra/Cifra Dialog */}
+        <Dialog open={isLetraDialogOpen} onOpenChange={setIsLetraDialogOpen}>
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-serif flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Letra / Cifra - {letraMusica?.titulo}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                {letraMusica?.artista && (
+                  <span>Artista: {letraMusica.artista}</span>
+                )}
+                {letraMusica?.tom && (
+                  <span>Tom: {letraMusica.tom}</span>
+                )}
+              </div>
+              <div className="flex-1 min-h-0">
+                <Textarea
+                  value={letra}
+                  onChange={(e) => setLetra(e.target.value)}
+                  placeholder={`Cole aqui a letra e/ou cifra da música...\n\nExemplo:\n\n[Intro] G  D  Em  C\n\n        G                D\nAqui começa a primeira linha\n        Em               C\nE continua a segunda linha\n\n[Refrão]\n        G        D\nEste é o refrão\n        Em       C\nQue todos cantam`}
+                  className="h-full min-h-[400px] font-mono text-sm resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsLetraDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="gradient"
+                  onClick={handleSaveLetra}
+                  disabled={isSavingLetra}
+                >
+                  {isSavingLetra ? 'Salvando...' : 'Salvar Letra/Cifra'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
