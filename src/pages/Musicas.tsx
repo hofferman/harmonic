@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
@@ -10,9 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Music, Plus, Trash2, ExternalLink, Edit2, FileText, X } from 'lucide-react';
+import { Music, Plus, Trash2, ExternalLink, Edit2, FileText, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Musica {
   id: string;
@@ -41,12 +44,21 @@ export default function Musicas() {
   const [tom, setTom] = useState('');
   const [link, setLink] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [artistaPopoverOpen, setArtistaPopoverOpen] = useState(false);
 
   // Letra dialog state
   const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
   const [letraMusica, setLetraMusica] = useState<Musica | null>(null);
   const [letra, setLetra] = useState('');
   const [isSavingLetra, setIsSavingLetra] = useState(false);
+
+  // Get unique artists from existing musicas
+  const existingArtists = useMemo(() => {
+    const artists = musicas
+      .map(m => m.artista)
+      .filter((a): a is string => a !== null && a.trim() !== '');
+    return [...new Set(artists)].sort();
+  }, [musicas]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -342,12 +354,68 @@ export default function Musicas() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="artista">Artista</Label>
-                <Input
-                  id="artista"
-                  value={artista}
-                  onChange={(e) => setArtista(e.target.value)}
-                  placeholder="Nome do artista ou banda"
-                />
+                <Popover open={artistaPopoverOpen} onOpenChange={setArtistaPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={artistaPopoverOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {artista || "Selecione ou digite um artista..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Buscar ou adicionar artista..." 
+                        value={artista}
+                        onValueChange={setArtista}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="py-2 px-4 text-sm">
+                            {artista.trim() ? (
+                              <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  setArtistaPopoverOpen(false);
+                                }}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar "{artista}"
+                              </Button>
+                            ) : (
+                              "Digite o nome do artista"
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="Artistas cadastrados">
+                          {existingArtists.map((artist) => (
+                            <CommandItem
+                              key={artist}
+                              value={artist}
+                              onSelect={(currentValue) => {
+                                setArtista(currentValue);
+                                setArtistaPopoverOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  artista === artist ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
