@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, isFuture, isPast, isToday } from 'date-fns';
+import { format, isFuture, isPast, isToday, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar, Plus, ChevronRight, Users, Music, Trash2 } from 'lucide-react';
+import { Calendar, Plus, ChevronRight, Users, Music, Trash2, History, ChevronDown } from 'lucide-react';
 
 interface Escala {
   id: string;
@@ -37,6 +37,7 @@ export default function Escalas() {
   const [novaEscalaData, setNovaEscalaData] = useState('');
   const [novaEscalaTitulo, setNovaEscalaTitulo] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showPastEscalas, setShowPastEscalas] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -106,6 +107,17 @@ export default function Escalas() {
       setIsLoading(false);
     }
   };
+
+  // Filter escalas: future (including today) vs past
+  const today = startOfDay(new Date());
+  const futureEscalas = escalas.filter(escala => {
+    const escalaDate = startOfDay(new Date(escala.data + 'T00:00:00'));
+    return escalaDate >= today;
+  });
+  const pastEscalas = escalas.filter(escala => {
+    const escalaDate = startOfDay(new Date(escala.data + 'T00:00:00'));
+    return escalaDate < today;
+  });
 
   const handleCreateEscala = async () => {
     if (!novaEscalaData || !novaEscalaTitulo.trim()) {
@@ -262,20 +274,31 @@ export default function Escalas() {
                 <Skeleton key={i} className="h-32 w-full" />
               ))}
             </>
-          ) : escalas.length === 0 ? (
+          ) : futureEscalas.length === 0 && !showPastEscalas ? (
             <Card className="border-0 shadow-lg">
               <CardContent className="py-12 text-center">
                 <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-                <h3 className="text-lg font-semibold mb-2">Nenhuma escala encontrada</h3>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma escala futura</h3>
                 <p className="text-muted-foreground">
                   {isAdmin 
                     ? 'Clique em "Nova Escala" para criar a primeira escala.'
-                    : 'Você ainda não foi escalado.'}
+                    : 'Você ainda não foi escalado para próximos eventos.'}
                 </p>
+                {pastEscalas.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setShowPastEscalas(true)}
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    Ver {pastEscalas.length} escala{pastEscalas.length !== 1 && 's'} passada{pastEscalas.length !== 1 && 's'}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
-            escalas.map((escala, index) => (
+            <>
+            {futureEscalas.map((escala, index) => (
               <Card
                 key={escala.id}
                 className="border-0 shadow-md hover:shadow-lg cursor-pointer transition-all animate-slide-up"
@@ -334,7 +357,84 @@ export default function Escalas() {
                   </div>
                 </CardContent>
               </Card>
-            ))
+            ))}
+            
+            {/* Past Escalas Section */}
+            {pastEscalas.length > 0 && (
+              <div className="mt-8">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between mb-4 text-muted-foreground"
+                  onClick={() => setShowPastEscalas(!showPastEscalas)}
+                >
+                  <span className="flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Escalas passadas ({pastEscalas.length})
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showPastEscalas ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {showPastEscalas && (
+                  <div className="space-y-4 opacity-70">
+                    {pastEscalas.map((escala, index) => (
+                      <Card
+                        key={escala.id}
+                        className="border-0 shadow-md hover:shadow-lg cursor-pointer transition-all"
+                        onClick={() => navigate(`/escalas/${escala.id}`)}
+                      >
+                        <CardContent className="p-4 lg:p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-start gap-4">
+                              <div className="w-14 h-14 rounded-xl bg-secondary flex flex-col items-center justify-center shrink-0">
+                                <span className="text-xs text-muted-foreground uppercase">
+                                  {format(new Date(escala.data + 'T00:00:00'), 'MMM', { locale: ptBR })}
+                                </span>
+                                <span className="text-xl font-bold">
+                                  {format(new Date(escala.data + 'T00:00:00'), 'd')}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-semibold text-lg">{escala.titulo}</h3>
+                                  {getStatusBadge(escala.data)}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1 capitalize">
+                                  {formatDate(escala.data)}
+                                </p>
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Users className="w-4 h-4" />
+                                    {escala.membros_count} membro{escala.membros_count !== 1 && 's'}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Music className="w-4 h-4" />
+                                    {escala.musicas_count} música{escala.musicas_count !== 1 && 's'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => handleDeleteEscala(escala.id, e)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>
