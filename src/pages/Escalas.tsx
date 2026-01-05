@@ -291,7 +291,7 @@ export default function Escalas() {
                     onClick={() => setShowPastEscalas(true)}
                   >
                     <History className="w-4 h-4 mr-2" />
-                    Ver {pastEscalas.length} escala{pastEscalas.length !== 1 && 's'} passada{pastEscalas.length !== 1 && 's'}
+                    Ver {pastEscalas.length} escala{pastEscalas.length !== 1 && 's'} anterior{pastEscalas.length !== 1 && 'es'}
                   </Button>
                 )}
               </CardContent>
@@ -369,7 +369,7 @@ export default function Escalas() {
                 >
                   <span className="flex items-center gap-2">
                     <History className="w-4 h-4" />
-                    Escalas passadas ({pastEscalas.length})
+                    Escalas anteriores ({pastEscalas.length})
                   </span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${showPastEscalas ? 'rotate-180' : ''}`} />
                 </Button>
