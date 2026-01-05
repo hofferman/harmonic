@@ -61,6 +61,7 @@ export type Database = {
           created_at: string
           escala_id: string
           id: string
+          ministro_id: string | null
           musica_id: string
           ordem: number
         }
@@ -68,6 +69,7 @@ export type Database = {
           created_at?: string
           escala_id: string
           id?: string
+          ministro_id?: string | null
           musica_id: string
           ordem?: number
         }
@@ -75,6 +77,7 @@ export type Database = {
           created_at?: string
           escala_id?: string
           id?: string
+          ministro_id?: string | null
           musica_id?: string
           ordem?: number
         }
@@ -84,6 +87,13 @@ export type Database = {
             columns: ["escala_id"]
             isOneToOne: false
             referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escala_musicas_ministro_id_fkey"
+            columns: ["ministro_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
