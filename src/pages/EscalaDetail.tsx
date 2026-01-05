@@ -37,6 +37,8 @@ interface EscalaMembro {
 interface EscalaMusica {
   id: string;
   ordem: number;
+  ministro_id: string | null;
+  ministro: Profile | null;
   musica: {
     id: string;
     titulo: string;
@@ -60,6 +62,7 @@ interface MusicaOption {
   titulo: string;
   artista: string | null;
   ultimaVezTocada: string | null;
+  ultimoMinistro: string | null;
 }
 
 const FUNCOES = [
@@ -97,6 +100,7 @@ export default function EscalaDetail() {
   // Add music dialog
   const [isAddMusicOpen, setIsAddMusicOpen] = useState(false);
   const [selectedMusica, setSelectedMusica] = useState('');
+  const [selectedMinistro, setSelectedMinistro] = useState('');
 
   // View letra dialog
   const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
@@ -159,6 +163,8 @@ export default function EscalaDetail() {
         .select(`
           id,
           ordem,
+          ministro_id,
+          ministro:profiles!escala_musicas_ministro_id_fkey(id, nome),
           musica:musicas(id, titulo, artista, tom, link, letra)
         `)
         .eq('escala_id', id)
@@ -191,13 +197,14 @@ export default function EscalaDetail() {
       .order('titulo');
     
     if (musicasData) {
-      // For each music, find the last time it was played
+      // For each music, find the last time it was played and who ministered
       const musicasWithLastPlayed = await Promise.all(
         musicasData.map(async (musica) => {
           const { data: lastEscala } = await supabase
             .from('escala_musicas')
             .select(`
-              escala:escalas(data)
+              escala:escalas(data),
+              ministro:profiles!escala_musicas_ministro_id_fkey(nome)
             `)
             .eq('musica_id', musica.id)
             .order('created_at', { ascending: false })
@@ -207,6 +214,7 @@ export default function EscalaDetail() {
           return {
             ...musica,
             ultimaVezTocada: lastEscala?.escala?.data || null,
+            ultimoMinistro: lastEscala?.ministro?.nome || null,
           };
         })
       );
@@ -282,6 +290,7 @@ export default function EscalaDetail() {
         escala_id: id,
         musica_id: selectedMusica,
         ordem: musicas.length,
+        ministro_id: selectedMinistro || null,
       });
 
       if (error) throw error;
@@ -289,6 +298,7 @@ export default function EscalaDetail() {
       toast({ title: 'Música adicionada!' });
       setIsAddMusicOpen(false);
       setSelectedMusica('');
+      setSelectedMinistro('');
       fetchEscalaData();
     } catch (error: any) {
       toast({
@@ -547,12 +557,29 @@ export default function EscalaDetail() {
                               <SelectItem key={m.id} value={m.id}>
                                 <div className="flex flex-col">
                                   <span>{m.titulo} {m.artista && `- ${m.artista}`}</span>
-                                  {m.ultimaVezTocada && (
+                                  {(m.ultimaVezTocada || m.ultimoMinistro) && (
                                     <span className="text-xs text-muted-foreground">
-                                      Tocada em {format(new Date(m.ultimaVezTocada + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}
+                                      {m.ultimaVezTocada && `Tocada em ${format(new Date(m.ultimaVezTocada + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}`}
+                                      {m.ultimaVezTocada && m.ultimoMinistro && ' • '}
+                                      {m.ultimoMinistro && `Último ministro: ${m.ultimoMinistro}`}
                                     </span>
                                   )}
                                 </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ministro (opcional)</Label>
+                        <Select value={selectedMinistro} onValueChange={setSelectedMinistro}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione quem vai ministrar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allProfiles.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -600,6 +627,7 @@ export default function EscalaDetail() {
                         <p className="text-sm text-muted-foreground truncate">
                           {item.musica.artista || 'Artista desconhecido'}
                           {item.musica.tom && ` • Tom: ${item.musica.tom}`}
+                          {item.ministro && ` • Ministro: ${item.ministro.nome}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
