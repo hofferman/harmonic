@@ -17,8 +17,9 @@ import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ArrowLeft, Calendar, Users, Music, Plus, Trash2, 
-  GripVertical, ExternalLink, Star 
+  GripVertical, ExternalLink, Star, FileText, X
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Profile {
   id: string;
@@ -42,6 +43,7 @@ interface EscalaMusica {
     artista: string | null;
     tom: string | null;
     link: string | null;
+    letra: string | null;
   };
 }
 
@@ -95,6 +97,15 @@ export default function EscalaDetail() {
   const [isAddMusicOpen, setIsAddMusicOpen] = useState(false);
   const [selectedMusica, setSelectedMusica] = useState('');
 
+  // View letra dialog
+  const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
+  const [viewingMusica, setViewingMusica] = useState<EscalaMusica['musica'] | null>(null);
+
+  const openLetraDialog = (musica: EscalaMusica['musica']) => {
+    setViewingMusica(musica);
+    setIsLetraDialogOpen(true);
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
@@ -147,7 +158,7 @@ export default function EscalaDetail() {
         .select(`
           id,
           ordem,
-          musica:musicas(id, titulo, artista, tom, link)
+          musica:musicas(id, titulo, artista, tom, link, letra)
         `)
         .eq('escala_id', id)
         .order('ordem');
@@ -544,13 +555,31 @@ export default function EscalaDetail() {
                         {index + 1}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{item.musica.titulo}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{item.musica.titulo}</p>
+                          {item.musica.letra && (
+                            <Badge variant="secondary" className="shrink-0 text-xs">
+                              <FileText className="w-3 h-3 mr-1" />
+                              Cifra
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground truncate">
                           {item.musica.artista || 'Artista desconhecido'}
                           {item.musica.tom && ` • Tom: ${item.musica.tom}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {item.musica.letra && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openLetraDialog(item.musica)}
+                            title="Ver letra/cifra"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
                         {item.musica.link && (
                           <Button
                             variant="ghost"
@@ -580,6 +609,36 @@ export default function EscalaDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Letra/Cifra View Dialog */}
+        <Dialog open={isLetraDialogOpen} onOpenChange={setIsLetraDialogOpen}>
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-serif flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                {viewingMusica?.titulo}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {viewingMusica?.artista && (
+                <span>Artista: {viewingMusica.artista}</span>
+              )}
+              {viewingMusica?.tom && (
+                <span className="font-medium">Tom: {viewingMusica.tom}</span>
+              )}
+            </div>
+            <ScrollArea className="flex-1 mt-4">
+              <pre className="font-mono text-sm whitespace-pre-wrap leading-relaxed p-4 bg-secondary/30 rounded-lg">
+                {viewingMusica?.letra || 'Nenhuma letra/cifra cadastrada.'}
+              </pre>
+            </ScrollArea>
+            <div className="flex justify-end pt-4">
+              <Button variant="outline" onClick={() => setIsLetraDialogOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
