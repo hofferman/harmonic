@@ -59,6 +59,7 @@ interface MusicaOption {
   id: string;
   titulo: string;
   artista: string | null;
+  ultimaVezTocada: string | null;
 }
 
 const FUNCOES = [
@@ -184,8 +185,33 @@ export default function EscalaDetail() {
   };
 
   const fetchAllMusicas = async () => {
-    const { data } = await supabase.from('musicas').select('id, titulo, artista').order('titulo');
-    if (data) setAllMusicas(data);
+    const { data: musicasData } = await supabase
+      .from('musicas')
+      .select('id, titulo, artista')
+      .order('titulo');
+    
+    if (musicasData) {
+      // For each music, find the last time it was played
+      const musicasWithLastPlayed = await Promise.all(
+        musicasData.map(async (musica) => {
+          const { data: lastEscala } = await supabase
+            .from('escala_musicas')
+            .select(`
+              escala:escalas(data)
+            `)
+            .eq('musica_id', musica.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          return {
+            ...musica,
+            ultimaVezTocada: lastEscala?.escala?.data || null,
+          };
+        })
+      );
+      setAllMusicas(musicasWithLastPlayed);
+    }
   };
 
   const handleAddMember = async () => {
@@ -519,7 +545,14 @@ export default function EscalaDetail() {
                           <SelectContent>
                             {allMusicas.map(m => (
                               <SelectItem key={m.id} value={m.id}>
-                                {m.titulo} {m.artista && `- ${m.artista}`}
+                                <div className="flex flex-col">
+                                  <span>{m.titulo} {m.artista && `- ${m.artista}`}</span>
+                                  {m.ultimaVezTocada && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Tocada em {format(new Date(m.ultimaVezTocada + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}
+                                    </span>
+                                  )}
+                                </div>
                               </SelectItem>
                             ))}
                           </SelectContent>
