@@ -285,6 +285,17 @@ export default function EscalaDetail() {
       return;
     }
 
+    // Check if music is already in the repertoire
+    const alreadyExists = musicas.some(m => m.musica.id === selectedMusica);
+    if (alreadyExists) {
+      toast({
+        title: 'Música já adicionada',
+        description: 'Esta música já está no repertório desta escala.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.from('escala_musicas').insert({
         escala_id: id,
