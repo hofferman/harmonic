@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Music2, Calendar, Users, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function Index() {
@@ -24,6 +25,11 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-gradient-warm">
+      {/* Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
@@ -35,8 +41,7 @@ export default function Index() {
             </div>
             
             <h1 className="text-4xl lg:text-6xl font-serif font-bold text-foreground mb-6">
-              Ministério de
-              <span className="block text-gradient">Louvor</span>
+              <span className="text-gradient">Harmonic</span>
             </h1>
             
             <p className="text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
@@ -100,7 +105,7 @@ export default function Index() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Music2 className="w-5 h-5 text-primary" />
-              <span className="font-serif font-semibold">Ministério de Louvor</span>
+              <span className="font-serif font-semibold">Harmonic</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Feito com ❤️ para servir a igreja

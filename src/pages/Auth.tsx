@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Music2, Loader2 } from 'lucide-react';
 
 export default function Auth() {
@@ -100,13 +101,18 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-gradient-warm flex items-center justify-center p-4">
+      {/* Theme Toggle */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+      
       <div className="w-full max-w-md animate-slide-up">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-primary shadow-glow mb-4">
             <Music2 className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-serif font-bold text-foreground">
-            Ministério de Louvor
+            Harmonic
           </h1>
           <p className="text-muted-foreground mt-2">
             Gestão de escalas e músicas

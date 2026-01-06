@@ -24,6 +24,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -100,8 +101,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   <Music2 className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h2 className="font-serif font-semibold">Ministério</h2>
-                  <p className="text-xs text-muted-foreground">de Louvor</p>
+                  <h2 className="font-serif font-semibold">Harmonic</h2>
                 </div>
               </div>
               <NavLinks mobile />
@@ -110,48 +110,53 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
           <div className="flex items-center gap-2">
             <Music2 className="w-6 h-6 text-primary" />
-            <span className="font-serif font-semibold">Ministério</span>
+            <span className="font-serif font-semibold">Harmonic</span>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {profile?.nome ? getInitials(profile.nome) : '?'}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span>{profile?.nome}</span>
-                  <span className="text-xs text-muted-foreground font-normal capitalize">
-                    {isAdmin ? 'Administrador' : 'Membro'}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {profile?.nome ? getInitials(profile.nome) : '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span>{profile?.nome}</span>
+                    <span className="text-xs text-muted-foreground font-normal capitalize">
+                      {isAdmin ? 'Administrador' : 'Membro'}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex lg:flex-col bg-card border-r">
-        <div className="flex items-center gap-3 px-6 h-20 border-b">
-          <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <Music2 className="w-6 h-6 text-primary-foreground" />
+        <div className="flex items-center justify-between px-6 h-20 border-b">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
+              <Music2 className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-serif font-bold text-lg">Harmonic</h1>
+            </div>
           </div>
-          <div>
-            <h1 className="font-serif font-bold text-lg">Ministério</h1>
-            <p className="text-xs text-muted-foreground">de Louvor</p>
-          </div>
+          <ThemeToggle />
         </div>
 
         <div className="flex-1 px-4 py-6 overflow-y-auto">
