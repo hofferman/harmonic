@@ -206,6 +206,82 @@ export type Database = {
         }
         Relationships: []
       }
+      ordem_culto_blocos: {
+        Row: {
+          conteudo: Json
+          created_at: string
+          id: string
+          ordem: number
+          ordem_culto_id: string
+          tipo: string
+        }
+        Insert: {
+          conteudo?: Json
+          created_at?: string
+          id?: string
+          ordem?: number
+          ordem_culto_id: string
+          tipo: string
+        }
+        Update: {
+          conteudo?: Json
+          created_at?: string
+          id?: string
+          ordem?: number
+          ordem_culto_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordem_culto_blocos_ordem_culto_id_fkey"
+            columns: ["ordem_culto_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_culto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_culto: {
+        Row: {
+          created_at: string
+          created_by: string
+          data: string
+          escala_id: string | null
+          id: string
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          data: string
+          escala_id?: string | null
+          id?: string
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          data?: string
+          escala_id?: string | null
+          id?: string
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_culto_escala_id_fkey"
+            columns: ["escala_id"]
+            isOneToOne: false
+            referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

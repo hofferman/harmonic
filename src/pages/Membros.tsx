@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, Shield, User, Music } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X } from 'lucide-react';
 
 interface MembroFuncao {
   id: string;
@@ -53,6 +53,10 @@ export default function Membros() {
   const [isAddFuncaoOpen, setIsAddFuncaoOpen] = useState(false);
   const [selectedMembro, setSelectedMembro] = useState<Membro | null>(null);
   const [novaFuncao, setNovaFuncao] = useState('');
+
+  // Edit name
+  const [editingNomeId, setEditingNomeId] = useState<string | null>(null);
+  const [editingNomeValue, setEditingNomeValue] = useState('');
 
   // Change role dialog
   const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
@@ -144,6 +148,31 @@ export default function Membros() {
       if (error) throw error;
 
       toast({ title: 'Função removida' });
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditNome = async (membroId: string) => {
+    const trimmed = editingNomeValue.trim();
+    if (!trimmed) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nome: trimmed })
+        .eq('id', membroId);
+
+      if (error) throw error;
+
+      toast({ title: 'Nome atualizado!' });
+      setEditingNomeId(null);
+      setEditingNomeValue('');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -253,7 +282,48 @@ export default function Membros() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-lg">{membro.nome}</h3>
+                          {editingNomeId === membro.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editingNomeValue}
+                                onChange={(e) => setEditingNomeValue(e.target.value)}
+                                className="h-8 w-48"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleEditNome(membro.id);
+                                  if (e.key === 'Escape') setEditingNomeId(null);
+                                }}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-7 h-7 text-green-500"
+                                onClick={() => handleEditNome(membro.id)}
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-7 h-7 text-destructive"
+                                onClick={() => setEditingNomeId(null)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <h3
+                              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors group/name"
+                              onClick={() => {
+                                setEditingNomeId(membro.id);
+                                setEditingNomeValue(membro.nome);
+                              }}
+                              title="Clique para editar o nome"
+                            >
+                              {membro.nome}
+                              <Pencil className="w-3 h-3 ml-1.5 inline opacity-0 group-hover/name:opacity-50 transition-opacity" />
+                            </h3>
+                          )}
                           {membro.role === 'admin' ? (
                             <Badge className="bg-primary/10 text-primary border-0">
                               <Shield className="w-3 h-3 mr-1" />

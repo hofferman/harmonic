@@ -12,6 +12,8 @@ import Escalas from "./pages/Escalas";
 import EscalaDetail from "./pages/EscalaDetail";
 import Membros from "./pages/Membros";
 import Musicas from "./pages/Musicas";
+import OrdensCulto from "./pages/OrdensCulto";
+import OrdemCultoEditor from "./pages/OrdemCultoEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
               <Route path="/escalas/:id" element={<EscalaDetail />} />
               <Route path="/membros" element={<Membros />} />
               <Route path="/musicas" element={<Musicas />} />
+              <Route path="/ordens-culto" element={<OrdensCulto />} />
+              <Route path="/ordens-culto/:id" element={<OrdemCultoEditor />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>

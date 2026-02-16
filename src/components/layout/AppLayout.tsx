@@ -12,16 +12,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { 
-  Music2, 
-  LayoutDashboard, 
-  Calendar, 
-  Users, 
-  Music, 
+import {
+  Music2,
+  LayoutDashboard,
+  Calendar,
+  Users,
+  Music,
   Settings,
   LogOut,
   Menu,
-  ChevronRight
+  ChevronRight,
+  ListOrdered
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -33,6 +34,7 @@ interface AppLayoutProps {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
   { href: '/escalas', label: 'Escalas', icon: Calendar, adminOnly: false },
+  { href: '/ordens-culto', label: 'Ordem de Culto', icon: ListOrdered, adminOnly: false },
   { href: '/membros', label: 'Membros', icon: Users, adminOnly: true },
   { href: '/musicas', label: 'Músicas', icon: Music, adminOnly: true },
 ];
@@ -62,7 +64,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const NavLinks = ({ mobile = false }: { mobile?: boolean }) => (
     <nav className={cn("space-y-1", mobile && "mt-8")}>
       {filteredNavItems.map((item) => {
-        const isActive = location.pathname === item.href;
+        const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
         return (
           <Link
             key={item.href}
