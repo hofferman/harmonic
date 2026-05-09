@@ -379,25 +379,28 @@ export default function EscalaDetail() {
     if (newIndex < 0 || newIndex >= musicas.length) return;
     
     const otherMusica = musicas[newIndex];
+    const previousMusicas = [...musicas];
+    const reorderedMusicas = [...musicas];
+    reorderedMusicas[currentIndex] = { ...otherMusica, ordem: currentIndex };
+    reorderedMusicas[newIndex] = { ...escalaMusica, ordem: newIndex };
+    setMusicas(reorderedMusicas);
     
     try {
-      // Swap the ordem values
-      const { error: error1 } = await supabase
-        .from('escala_musicas')
-        .update({ ordem: newIndex })
-        .eq('id', escalaMusica.id);
-      
-      if (error1) throw error1;
-      
-      const { error: error2 } = await supabase
-        .from('escala_musicas')
-        .update({ ordem: currentIndex })
-        .eq('id', otherMusica.id);
-      
-      if (error2) throw error2;
-      
-      fetchEscalaData();
+      const [firstUpdate, secondUpdate] = await Promise.all([
+        supabase
+          .from('escala_musicas')
+          .update({ ordem: newIndex })
+          .eq('id', escalaMusica.id),
+        supabase
+          .from('escala_musicas')
+          .update({ ordem: currentIndex })
+          .eq('id', otherMusica.id),
+      ]);
+
+      if (firstUpdate.error) throw firstUpdate.error;
+      if (secondUpdate.error) throw secondUpdate.error;
     } catch (error: any) {
+      setMusicas(previousMusicas);
       toast({
         title: 'Erro',
         description: error.message,
