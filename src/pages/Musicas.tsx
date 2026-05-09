@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Music, Plus, Trash2, ExternalLink, Edit2, FileText, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface Musica {
   id: string;
@@ -76,7 +77,16 @@ export default function Musicas() {
   }, [user, isAdmin]);
 
   const fetchMusicas = async () => {
-    setIsLoading(true);
+    const cacheKey = 'musicas';
+    const cached = readPageCache<Musica[]>(cacheKey);
+
+    if (cached) {
+      setMusicas(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const { data, error } = await supabase
         .from('musicas')
@@ -84,7 +94,9 @@ export default function Musicas() {
         .order('titulo');
 
       if (error) throw error;
-      setMusicas(data || []);
+      const musicasData = data || [];
+      setMusicas(musicasData);
+      writePageCache(cacheKey, musicasData);
     } catch (error) {
       console.error('Error fetching musicas:', error);
     } finally {
@@ -149,6 +161,7 @@ export default function Musicas() {
       }
 
       setIsDialogOpen(false);
+      clearPageCache('musicas');
       fetchMusicas();
     } catch (error: any) {
       toast({
@@ -175,6 +188,7 @@ export default function Musicas() {
       
       toast({ title: 'Letra/cifra salva!' });
       setIsLetraDialogOpen(false);
+      clearPageCache('musicas');
       fetchMusicas();
     } catch (error: any) {
       toast({
@@ -195,6 +209,7 @@ export default function Musicas() {
       if (error) throw error;
 
       toast({ title: 'Música excluída' });
+      clearPageCache('musicas');
       fetchMusicas();
     } catch (error: any) {
       toast({

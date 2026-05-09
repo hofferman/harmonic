@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, isFuture, isPast, isToday, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Plus, ChevronRight, Users, Music, Trash2, History, ChevronDown } from 'lucide-react';
+import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface Escala {
   id: string;
@@ -52,7 +53,16 @@ export default function Escalas() {
   }, [user]);
 
   const fetchEscalas = async () => {
-    setIsLoading(true);
+    const cacheKey = `escalas:${user?.id ?? 'anon'}`;
+    const cached = readPageCache<Escala[]>(cacheKey);
+
+    if (cached) {
+      setEscalas(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       // Fetch escalas with member and music counts
       const { data: escalasData, error } = await supabase
@@ -100,6 +110,7 @@ export default function Escalas() {
         );
 
         setEscalas(escalasWithCounts);
+        writePageCache(cacheKey, escalasWithCounts);
       }
     } catch (error) {
       console.error('Error fetching escalas:', error);
@@ -147,6 +158,7 @@ export default function Escalas() {
       setIsDialogOpen(false);
       setNovaEscalaData('');
       setNovaEscalaTitulo('');
+      clearPageCache();
       fetchEscalas();
     } catch (error: any) {
       toast({
@@ -173,6 +185,7 @@ export default function Escalas() {
         description: 'A escala foi removida com sucesso.',
       });
 
+      clearPageCache();
       fetchEscalas();
     } catch (error: any) {
       toast({

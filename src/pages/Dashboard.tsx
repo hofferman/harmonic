@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, isToday, isTomorrow, isPast, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Music, Users, Clock, ChevronRight, AlertCircle, Star } from 'lucide-react';
+import { readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface Escala {
   id: string;
@@ -36,6 +37,15 @@ interface EscalaMusica {
   };
 }
 
+interface DashboardCache {
+  minhasEscalas: EscalaMembro[];
+  proximaEscala: EscalaMembro | null;
+  musicasProximaEscala: EscalaMusica[];
+  totalMembros: number;
+  totalMusicas: number;
+  totalEscalas: number;
+}
+
 export default function Dashboard() {
   const { user, profile, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -60,9 +70,29 @@ export default function Dashboard() {
   }, [user, isAdmin]);
 
   const fetchDashboardData = async () => {
-    setIsLoading(true);
+    const cacheKey = `dashboard:${user?.id ?? 'anon'}:${isAdmin ? 'admin' : 'membro'}`;
+    const cached = readPageCache<DashboardCache>(cacheKey);
+
+    if (cached) {
+      setMinhasEscalas(cached.minhasEscalas);
+      setProximaEscala(cached.proximaEscala);
+      setMusicasProximaEscala(cached.musicasProximaEscala);
+      setTotalMembros(cached.totalMembros);
+      setTotalMusicas(cached.totalMusicas);
+      setTotalEscalas(cached.totalEscalas);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
+      let nextMinhasEscalas: EscalaMembro[] = [];
+      let nextProximaEscala: EscalaMembro | null = null;
+      let nextMusicasProximaEscala: EscalaMusica[] = [];
+      let nextTotalMembros = 0;
+      let nextTotalMusicas = 0;
+      let nextTotalEscalas = 0;
       
       // Fetch my upcoming schedules
       const { data: escalasData } = await supabase
@@ -82,10 +112,12 @@ export default function Dashboard() {
         const filtered = escalasData.filter((e): e is EscalaMembro & { escala: Escala } => 
           e.escala !== null
         );
-        setMinhasEscalas(filtered);
+        nextMinhasEscalas = filtered;
+        setMinhasEscalas(nextMinhasEscalas);
         
         if (filtered.length > 0) {
-          setProximaEscala(filtered[0]);
+          nextProximaEscala = filtered[0];
+          setProximaEscala(nextProximaEscala);
           
           // Fetch songs for next schedule
           const { data: musicasData } = await supabase
@@ -99,8 +131,12 @@ export default function Dashboard() {
             .order('ordem', { ascending: true });
           
           if (musicasData) {
-            setMusicasProximaEscala(musicasData.filter((m): m is EscalaMusica => m.musica !== null));
+            nextMusicasProximaEscala = musicasData.filter((m): m is EscalaMusica => m.musica !== null);
+            setMusicasProximaEscala(nextMusicasProximaEscala);
           }
+        } else {
+          setProximaEscala(null);
+          setMusicasProximaEscala([]);
         }
       }
 
@@ -109,19 +145,31 @@ export default function Dashboard() {
         const { count: membrosCount } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
-        setTotalMembros(membrosCount || 0);
+        nextTotalMembros = membrosCount || 0;
+        setTotalMembros(nextTotalMembros);
 
         const { count: musicasCount } = await supabase
           .from('musicas')
           .select('*', { count: 'exact', head: true });
-        setTotalMusicas(musicasCount || 0);
+        nextTotalMusicas = musicasCount || 0;
+        setTotalMusicas(nextTotalMusicas);
 
         const { count: escalasCount } = await supabase
           .from('escalas')
           .select('*', { count: 'exact', head: true })
           .gte('data', today);
-        setTotalEscalas(escalasCount || 0);
+        nextTotalEscalas = escalasCount || 0;
+        setTotalEscalas(nextTotalEscalas);
       }
+
+      writePageCache(cacheKey, {
+        minhasEscalas: nextMinhasEscalas,
+        proximaEscala: nextProximaEscala,
+        musicasProximaEscala: nextMusicasProximaEscala,
+        totalMembros: nextTotalMembros,
+        totalMusicas: nextTotalMusicas,
+        totalEscalas: nextTotalEscalas,
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2 } from 'lucide-react';
+import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface MembroFuncao {
   id: string;
@@ -88,7 +89,16 @@ export default function Membros() {
   }, [user, isAdmin]);
 
   const fetchMembros = async () => {
-    setIsLoading(true);
+    const cacheKey = 'membros';
+    const cached = readPageCache<Membro[]>(cacheKey);
+
+    if (cached) {
+      setMembros(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       // Fetch all profiles
       let { data: profilesData, error: profilesError } = await supabase
@@ -132,6 +142,7 @@ export default function Membros() {
         }));
 
         setMembros(membrosWithData);
+        writePageCache(cacheKey, membrosWithData);
       }
     } catch (error) {
       console.error('Error fetching membros:', error);
@@ -155,6 +166,7 @@ export default function Membros() {
       setIsAddFuncaoOpen(false);
       setNovaFuncao('');
       setSelectedMembro(null);
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -171,6 +183,7 @@ export default function Membros() {
       if (error) throw error;
 
       toast({ title: 'Função removida' });
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -196,6 +209,7 @@ export default function Membros() {
       toast({ title: 'Nome atualizado!' });
       setEditingNomeId(null);
       setEditingNomeValue('');
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -224,6 +238,7 @@ export default function Membros() {
       toast({ title: 'Permissão alterada!' });
       setIsChangeRoleOpen(false);
       setRoleMembroId(null);
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -262,6 +277,7 @@ export default function Membros() {
       setIsCreateUserOpen(false);
       setNewUserNome('');
       setNewUserEmail('');
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
@@ -294,6 +310,7 @@ export default function Membros() {
       if (error) throw error;
 
       toast({ title: 'Usuário excluído!' });
+      clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({

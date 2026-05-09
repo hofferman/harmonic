@@ -12,6 +12,7 @@ import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ListOrdered, Plus, ChevronRight, Trash2, History, ChevronDown, Calendar, FileText } from 'lucide-react';
 import type { OrdemCulto } from '@/types/ordemCulto';
+import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface OrdemCultoWithEscala extends OrdemCulto {
   escala_titulo?: string;
@@ -39,7 +40,16 @@ export default function OrdensCulto() {
   }, [user]);
 
   const fetchOrdens = async () => {
-    setIsLoading(true);
+    const cacheKey = `ordens-culto:${isAdmin ? 'admin' : 'membro'}`;
+    const cached = readPageCache<OrdemCultoWithEscala[]>(cacheKey);
+
+    if (cached) {
+      setOrdens(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const { data, error } = await supabase
         .from('ordens_culto')
@@ -57,6 +67,7 @@ export default function OrdensCulto() {
           escala_titulo: item.escala?.titulo,
         }));
         setOrdens(mapped);
+        writePageCache(cacheKey, mapped);
       }
     } catch (error) {
       console.error('Error fetching ordens:', error);
@@ -77,6 +88,7 @@ export default function OrdensCulto() {
         title: 'Ordem excluída',
         description: 'A ordem de culto foi removida com sucesso.',
       });
+      clearPageCache();
       fetchOrdens();
     } catch (error: any) {
       toast({
