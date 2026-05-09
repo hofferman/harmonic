@@ -519,7 +519,7 @@ export default function EscalaDetail() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+      <div className="p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="animate-fade-in">
           <Button
@@ -554,7 +554,7 @@ export default function EscalaDetail() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] items-start">
           {/* Songs */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -634,120 +634,128 @@ export default function EscalaDetail() {
                   <p>Nenhuma música no repertório</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {musicas.map((item, index) => (
                     <div
                       key={item.id}
-                      className="flex items-start gap-4 p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group border border-secondary/20"
+                      className="rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group border border-secondary/20 p-3 sm:p-4"
                     >
-                      {isAdmin && (
-                        <div className="flex flex-col gap-1 pt-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={index === 0}
-                            onClick={() => handleMoveMusic(item, 'up')}
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            disabled={index === musicas.length - 1}
-                            onClick={() => handleMoveMusic(item, 'down')}
-                            title="Mover para baixo"
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                      <span className="flex items-center justify-center min-w-max w-8 h-8 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-2">
-                          <div className="flex-1">
-                            <p className="font-semibold text-base">{item.musica.titulo}</p>
+                      <div className="flex items-start gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-base leading-snug break-words">{item.musica.titulo}</p>
+                              {item.musica.letra && (
+                                <Badge variant="secondary" className="mt-1 text-xs">
+                                  <FileText className="w-3 h-3 mr-1" />
+                                  Cifra
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          {item.musica.letra && (
-                            <Badge variant="secondary" className="shrink-0 text-xs">
-                              <FileText className="w-3 h-3 mr-1" />
-                              Cifra
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          {item.musica.artista && (
-                            <p><span className="font-medium">Artista:</span> {item.musica.artista}</p>
-                          )}
-                          {item.musica.tom && (
-                            <p><span className="font-medium">Tom:</span> {item.musica.tom}</p>
-                          )}
-                          {item.ministro && (
-                            <p><span className="font-medium">Ministro:</span> {item.ministro.nome}</p>
-                          )}
+                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                            {item.musica.artista && (
+                              <span><span className="font-medium">Artista:</span> {item.musica.artista}</span>
+                            )}
+                            {item.musica.tom && (
+                              <span><span className="font-medium">Tom:</span> {item.musica.tom}</span>
+                            )}
+                            {item.ministro && (
+                              <span><span className="font-medium">Ministro:</span> {item.ministro.nome}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0 flex-wrap justify-end pt-1">
-                        {item.musica.letra && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => openLetraDialog(item.musica)}
-                            title="Ver letra/cifra"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {item.musica.link && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            asChild
-                          >
-                            <a href={item.musica.link} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <>
-                            {item.musica.letra && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openEditLetraDialog(item.musica)}
-                                title="Editar letra/cifra"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                            )}
+
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+                        {isAdmin ? (
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => openEditMusicDialog(item)}
-                              title="Editar música"
+                              disabled={index === 0}
+                              onClick={() => handleMoveMusic(item, 'up')}
+                              title="Mover para cima"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <ChevronUp className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleRemoveMusic(item.id)}
-                              title="Remover música"
+                              className="h-8 w-8"
+                              disabled={index === musicas.length - 1}
+                              onClick={() => handleMoveMusic(item, 'down')}
+                              title="Mover para baixo"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <ChevronDown className="w-4 h-4" />
                             </Button>
-                          </>
+                          </div>
+                        ) : (
+                          <span />
                         )}
+
+                        <div className="flex items-center gap-1">
+                          {item.musica.letra && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openLetraDialog(item.musica)}
+                              title="Ver letra/cifra"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {item.musica.link && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              asChild
+                            >
+                              <a href={item.musica.link} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <>
+                              {item.musica.letra && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => openEditLetraDialog(item.musica)}
+                                  title="Editar letra/cifra"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openEditMusicDialog(item)}
+                                title="Editar música"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleRemoveMusic(item.id)}
+                                title="Remover música"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
