@@ -495,7 +495,7 @@ export default function EscalaDetail() {
   if (authLoading || isLoading) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+        <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
           <Skeleton className="h-10 w-40" />
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-64 w-full" />
@@ -507,7 +507,7 @@ export default function EscalaDetail() {
   if (!escala) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 text-center">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 text-center">
           <p>Escala não encontrada.</p>
           <Button variant="outline" className="mt-4" onClick={() => navigate('/escalas')}>
             Voltar
@@ -519,7 +519,7 @@ export default function EscalaDetail() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="animate-fade-in">
           <Button
@@ -531,22 +531,22 @@ export default function EscalaDetail() {
             Voltar
           </Button>
           
-          <div className="flex items-start justify-between gap-4">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl lg:text-3xl font-serif font-bold">
+                <h1 className="text-2xl lg:text-3xl font-serif font-bold leading-tight break-words">
                   {escala.titulo}
                 </h1>
                 {getStatusBadge()}
               </div>
-              <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                {format(new Date(escala.data + 'T00:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              <p className="text-muted-foreground mt-1 flex items-start gap-2 leading-snug">
+                <Calendar className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{format(new Date(escala.data + 'T00:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
               </p>
             </div>
 
             {isCurrentUserMember && (
-              <Badge className="bg-primary text-primary-foreground shrink-0">
+              <Badge className="bg-primary text-primary-foreground w-fit shrink-0">
                 <Star className="w-3 h-3 mr-1" />
                 {currentUserFuncao}
               </Badge>
@@ -557,20 +557,20 @@ export default function EscalaDetail() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] items-start">
           {/* Songs */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-serif flex items-center gap-2">
+            <CardHeader className="flex flex-row items-start justify-between gap-3 px-4 sm:px-6">
+              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-xl leading-tight">
                 <Music className="w-5 h-5 text-primary" />
                 Repertório ({musicas.length})
               </CardTitle>
               {isAdmin && (
                 <Dialog open={isAddMusicOpen} onOpenChange={setIsAddMusicOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="shrink-0">
                       <Plus className="w-4 h-4 mr-1" />
                       Adicionar
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle className="font-serif">Adicionar Música</DialogTitle>
                     </DialogHeader>
@@ -766,20 +766,20 @@ export default function EscalaDetail() {
 
           {/* Members */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-serif flex items-center gap-2">
+            <CardHeader className="flex flex-row items-start justify-between gap-3 px-4 sm:px-6">
+              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-xl leading-tight">
                 <Users className="w-5 h-5 text-primary" />
                 Equipe ({membros.length})
               </CardTitle>
               {isAdmin && (
                 <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="shrink-0">
                       <Plus className="w-4 h-4 mr-1" />
                       Adicionar
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle className="font-serif">Adicionar Membro</DialogTitle>
                     </DialogHeader>
@@ -841,13 +841,13 @@ export default function EscalaDetail() {
                   {membros.map((membro) => (
                     <div
                       key={membro.id}
-                      className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                      className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
                         membro.profile_id === user?.id
                           ? 'bg-primary/10 border border-primary/20'
                           : 'bg-secondary/30'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
                           membro.profile_id === user?.id
                             ? 'bg-primary text-primary-foreground'
@@ -855,8 +855,8 @@ export default function EscalaDetail() {
                         }`}>
                           {membro.profile.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
-                        <div>
-                          <p className="font-medium">
+                        <div className="min-w-0">
+                          <p className="font-medium leading-snug break-words">
                             {membro.profile.nome}
                             {membro.profile_id === user?.id && ' (Você)'}
                           </p>
@@ -872,7 +872,7 @@ export default function EscalaDetail() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => handleRemoveMember(membro.id)}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -888,14 +888,14 @@ export default function EscalaDetail() {
 
         {/* Letra/Cifra View Dialog */}
         <Dialog open={isLetraDialogOpen} onOpenChange={setIsLetraDialogOpen}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-4xl h-[88vh] sm:h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="font-serif flex items-center gap-2">
                 <FileText className="w-5 h-5" />
                 {viewingMusica?.titulo}
               </DialogTitle>
             </DialogHeader>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {viewingMusica?.artista && (
                 <span>Artista: {viewingMusica.artista}</span>
               )}
@@ -918,7 +918,7 @@ export default function EscalaDetail() {
 
         {/* Edit Music Dialog */}
         <Dialog open={isEditMusicOpen} onOpenChange={setIsEditMusicOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-serif">Editar Música</DialogTitle>
             </DialogHeader>
@@ -997,7 +997,7 @@ export default function EscalaDetail() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-tom">Tom</Label>
                   <Input
@@ -1031,14 +1031,14 @@ export default function EscalaDetail() {
 
         {/* Edit Letra/Cifra Dialog */}
         <Dialog open={isEditLetraOpen} onOpenChange={setIsEditLetraOpen}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-4xl h-[88vh] sm:h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="font-serif flex items-center gap-2">
                 <FileText className="w-5 h-5" />
                 Editar Letra / Cifra - {editingLetraMusica?.titulo}
               </DialogTitle>
             </DialogHeader>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               {editingLetraMusica?.artista && (
                 <span>Artista: {editingLetraMusica.artista}</span>
               )}
@@ -1052,18 +1052,20 @@ export default function EscalaDetail() {
                   value={editLetra}
                   onChange={(e) => setEditLetra(e.target.value)}
                   placeholder={`Cole aqui a letra e/ou cifra da música...\n\nExemplo:\n\n[Intro] G  D  Em  C\n\n        G                D\nAqui começa a primeira linha\n        Em               C\nE continua a segunda linha\n\n[Refrão]\n        G        D\nEste é o refrão\n        Em       C\nQue todos cantam`}
-                  className="h-full min-h-[400px] font-mono text-sm resize-none"
+                  className="h-full min-h-[300px] sm:min-h-[400px] font-mono text-sm resize-none"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
                 <Button
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => setIsEditLetraOpen(false)}
                 >
                   Cancelar
                 </Button>
                 <Button
                   variant="gradient"
+                  className="w-full sm:w-auto"
                   onClick={handleEditLetra}
                   disabled={isEditLeiraSaving}
                 >

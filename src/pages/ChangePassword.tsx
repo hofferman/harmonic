@@ -79,22 +79,22 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-warm flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-warm flex items-center justify-center px-3 py-6 sm:p-4">
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
 
       <Card className="w-full max-w-md shadow-lg border-0 animate-slide-up">
-        <CardHeader className="text-center space-y-3">
+        <CardHeader className="text-center space-y-3 px-4 sm:px-6">
           <div className="mx-auto inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary shadow-glow">
             <LockKeyhole className="w-7 h-7 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-serif">Crie uma nova senha</CardTitle>
+          <CardTitle className="text-2xl font-serif leading-tight">Crie uma nova senha</CardTitle>
           <CardDescription>
             Sua conta foi criada com a senha temporária Mudar@123. Defina uma senha nova para continuar.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new-password">Nova senha</Label>

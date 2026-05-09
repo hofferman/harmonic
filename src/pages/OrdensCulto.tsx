@@ -136,45 +136,48 @@ export default function OrdensCulto() {
       style={{ animationDelay: `${index * 0.1}s` }}
       onClick={() => navigate(`/ordens-culto/${ordem.id}`)}
     >
-      <CardContent className="p-4 lg:p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-xl bg-secondary flex flex-col items-center justify-center shrink-0">
-              <span className="text-xs text-muted-foreground uppercase">
+      <CardContent className="p-3 sm:p-4 lg:p-6">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-secondary flex flex-col items-center justify-center shrink-0">
+              <span className="text-[11px] sm:text-xs text-muted-foreground uppercase">
                 {format(new Date(ordem.data + 'T00:00:00'), 'MMM', { locale: ptBR })}
               </span>
-              <span className="text-xl font-bold">
+              <span className="text-lg sm:text-xl font-bold">
                 {format(new Date(ordem.data + 'T00:00:00'), 'd')}
               </span>
-            </div>
-            <div className="flex-1 min-w-0">
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold text-lg">{ordem.titulo}</h3>
+                    <h3 className="font-semibold text-base sm:text-lg leading-snug break-words">{ordem.titulo}</h3>
                 {getStatusBadge(ordem.status)}
               </div>
-              <p className="text-sm text-muted-foreground mt-1 capitalize">
+                <p className="text-sm text-muted-foreground mt-1 capitalize leading-snug">
                 {formatDate(ordem.data)}
               </p>
-              {ordem.escala_titulo && (
-                <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Escala: {ordem.escala_titulo}</span>
-                </div>
-              )}
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-1" />
             </div>
-          </div>
-          <div className="flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+              {ordem.escala_titulo && (
+                <span className="flex items-center gap-1 min-w-0">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span className="truncate">Escala: {ordem.escala_titulo}</span>
+                </span>
+              )}
             {isAdmin && (
               <Button
                 variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                size="sm"
+                className="ml-auto h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={(e) => handleDelete(ordem.id, e)}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Excluir</span>
               </Button>
             )}
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </div>
           </div>
         </div>
       </CardContent>
@@ -183,10 +186,10 @@ export default function OrdensCulto() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between animate-fade-in">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
+          <div className="min-w-0">
             <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
               Ordem de Culto
             </h1>
@@ -196,7 +199,7 @@ export default function OrdensCulto() {
           </div>
 
           {isAdmin && (
-            <Button variant="gradient" onClick={() => navigate('/ordens-culto/nova')}>
+            <Button variant="gradient" className="w-full sm:w-auto" onClick={() => navigate('/ordens-culto/nova')}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Ordem
             </Button>
@@ -241,14 +244,14 @@ export default function OrdensCulto() {
                 <div className="mt-8">
                   <Button
                     variant="ghost"
-                    className="w-full justify-between mb-4 text-muted-foreground"
+                    className="w-full justify-between mb-4 text-muted-foreground h-auto py-3 text-left"
                     onClick={() => setShowPast(!showPast)}
                   >
-                    <span className="flex items-center gap-2">
-                      <History className="w-4 h-4" />
-                      Ordens anteriores ({pastOrdens.length})
+                    <span className="flex items-center gap-2 min-w-0">
+                      <History className="w-4 h-4 shrink-0" />
+                      <span className="truncate">Ordens anteriores ({pastOrdens.length})</span>
                     </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showPast ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${showPast ? 'rotate-180' : ''}`} />
                   </Button>
 
                   {showPast && (

@@ -235,10 +235,10 @@ export default function Musicas() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between animate-fade-in">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
+          <div className="min-w-0">
             <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
               Músicas
             </h1>
@@ -247,7 +247,7 @@ export default function Musicas() {
             </p>
           </div>
           
-          <Button variant="gradient" onClick={() => openDialog()}>
+          <Button variant="gradient" className="w-full sm:w-auto" onClick={() => openDialog()}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Música
           </Button>
@@ -259,7 +259,7 @@ export default function Musicas() {
             placeholder="Buscar por título ou artista..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
@@ -292,15 +292,15 @@ export default function Musicas() {
                 className="border-0 shadow-md hover:shadow-lg transition-shadow animate-slide-up"
                 style={{ animationDelay: `${(index + 2) * 0.05}s` }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
-                        <Music className="w-6 h-6 text-primary-foreground" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-primary flex items-center justify-center shrink-0">
+                        <Music className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold truncate">{musica.titulo}</h3>
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <h3 className="font-semibold leading-snug break-words min-w-0">{musica.titulo}</h3>
                           {musica.letra && (
                             <Badge variant="secondary" className="shrink-0">
                               <FileText className="w-3 h-3 mr-1" />
@@ -308,35 +308,36 @@ export default function Musicas() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-muted-foreground leading-snug break-words">
                           {musica.artista || 'Artista desconhecido'}
                           {musica.tom && ` • Tom: ${musica.tom}`}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center justify-end gap-1 shrink-0 border-t border-border/50 pt-2 sm:border-0 sm:pt-0">
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        className="h-9 w-9"
                         onClick={() => openLetraDialog(musica)}
                         title="Editar letra/cifra"
                       >
                         <FileText className="w-4 h-4" />
                       </Button>
                       {musica.link && (
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
                           <a href={musica.link} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" onClick={() => openDialog(musica)}>
+                      <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => openDialog(musica)}>
                         <Edit2 className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDelete(musica.id)}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -351,7 +352,7 @@ export default function Musicas() {
 
         {/* Edit Music Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-serif">
                 {editingMusica ? 'Editar Música' : 'Nova Música'}
@@ -432,7 +433,7 @@ export default function Musicas() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="tom">Tom</Label>
                   <Input
@@ -466,7 +467,7 @@ export default function Musicas() {
 
         {/* Letra/Cifra Dialog */}
         <Dialog open={isLetraDialogOpen} onOpenChange={setIsLetraDialogOpen}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-4xl h-[88vh] sm:h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="font-serif flex items-center gap-2">
                 <FileText className="w-5 h-5" />
@@ -474,7 +475,7 @@ export default function Musicas() {
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 {letraMusica?.artista && (
                   <span>Artista: {letraMusica.artista}</span>
                 )}
@@ -487,18 +488,20 @@ export default function Musicas() {
                   value={letra}
                   onChange={(e) => setLetra(e.target.value)}
                   placeholder={`Cole aqui a letra e/ou cifra da música...\n\nExemplo:\n\n[Intro] G  D  Em  C\n\n        G                D\nAqui começa a primeira linha\n        Em               C\nE continua a segunda linha\n\n[Refrão]\n        G        D\nEste é o refrão\n        Em       C\nQue todos cantam`}
-                  className="h-full min-h-[400px] font-mono text-sm resize-none"
+                className="h-full min-h-[300px] sm:min-h-[400px] font-mono text-sm resize-none"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end sm:gap-3">
                 <Button
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => setIsLetraDialogOpen(false)}
                 >
                   Cancelar
                 </Button>
                 <Button
                   variant="gradient"
+                  className="w-full sm:w-auto"
                   onClick={handleSaveLetra}
                   disabled={isSavingLetra}
                 >

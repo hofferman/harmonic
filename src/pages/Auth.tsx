@@ -104,18 +104,18 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-warm flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-warm flex items-center justify-center px-3 py-6 sm:p-4">
       {/* Theme Toggle */}
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
       
       <div className="w-full max-w-md animate-slide-up">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-primary shadow-glow mb-4">
-            <Music2 className="w-8 h-8 text-primary-foreground" />
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-primary shadow-glow mb-4">
+            <Music2 className="w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">
+          <h1 className="text-3xl font-serif font-bold text-foreground leading-tight">
             Harmonic
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -124,15 +124,15 @@ export default function Auth() {
         </div>
 
         <Card className="shadow-lg border-0">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-serif text-center">
+          <CardHeader className="space-y-1 px-4 pb-4 sm:px-6">
+            <CardTitle className="text-2xl font-serif text-center leading-tight">
               Acesse sua conta
             </CardTitle>
             <CardDescription className="text-center">
               Entre com seu email ou crie uma nova conta
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6">
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Entrar</TabsTrigger>

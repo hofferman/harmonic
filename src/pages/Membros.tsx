@@ -339,10 +339,10 @@ export default function Membros() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between animate-fade-in">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
+          <div className="min-w-0">
             <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
               Membros
             </h1>
@@ -350,7 +350,7 @@ export default function Membros() {
               Gerencie os membros e suas funções
             </p>
           </div>
-          <Button variant="gradient" onClick={() => setIsCreateUserOpen(true)}>
+          <Button variant="gradient" className="w-full sm:w-auto" onClick={() => setIsCreateUserOpen(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
             Criar usuário
           </Button>
@@ -362,7 +362,7 @@ export default function Membros() {
             placeholder="Buscar membro..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
         </div>
 
@@ -388,10 +388,10 @@ export default function Membros() {
                 className="border-0 shadow-md animate-slide-up"
                 style={{ animationDelay: `${(index + 2) * 0.1}s` }}
               >
-                <CardContent className="p-4 lg:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
+                <CardContent className="p-3 sm:p-4 lg:p-6">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
                         membro.role === 'admin' 
                           ? 'bg-primary text-primary-foreground' 
                           : 'bg-secondary text-secondary-foreground'
@@ -401,11 +401,11 @@ export default function Membros() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           {editingNomeId === membro.id ? (
-                            <div className="flex items-center gap-1">
+                            <div className="flex w-full items-center gap-1 sm:w-auto">
                               <Input
                                 value={editingNomeValue}
                                 onChange={(e) => setEditingNomeValue(e.target.value)}
-                                className="h-8 w-48"
+                                className="h-8 min-w-0 flex-1 sm:w-48"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handleEditNome(membro.id);
@@ -431,7 +431,7 @@ export default function Membros() {
                             </div>
                           ) : (
                             <h3
-                              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors group/name"
+                              className="font-semibold text-base sm:text-lg leading-snug break-words cursor-pointer hover:text-primary transition-colors group/name"
                               onClick={() => {
                                 setEditingNomeId(membro.id);
                                 setEditingNomeValue(membro.nome);
@@ -466,14 +466,14 @@ export default function Membros() {
                             <Badge
                               key={funcao.id}
                               variant="outline"
-                              className="pl-2 pr-1 py-1 gap-1 group"
+                              className="pl-2 pr-1 py-1 gap-1 group max-w-full"
                             >
                               <Music className="w-3 h-3" />
-                              {funcao.funcao}
+                              <span className="truncate">{funcao.funcao}</span>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-4 h-4 ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-transparent"
+                                className="w-4 h-4 ml-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-transparent"
                                 onClick={() => handleRemoveFuncao(funcao.id)}
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -497,10 +497,11 @@ export default function Membros() {
                     </div>
                     
                     {membro.id !== user?.id && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
                         <Button
                           variant="outline"
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() => {
                             setRoleMembroId(membro.id);
                             setIsChangeRoleOpen(true);
@@ -511,7 +512,7 @@ export default function Membros() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-destructive hover:text-destructive"
+                          className="w-full sm:w-auto text-destructive hover:text-destructive"
                           onClick={() => handleDeleteUser(membro)}
                           disabled={isDeletingUserId === membro.id}
                         >
@@ -533,7 +534,7 @@ export default function Membros() {
 
         {/* Add Function Dialog */}
         <Dialog open={isAddFuncaoOpen} onOpenChange={setIsAddFuncaoOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-serif">
                 Adicionar Função para {selectedMembro?.nome}
@@ -564,7 +565,7 @@ export default function Membros() {
 
         {/* Create User Dialog */}
         <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-serif">Criar usuário</DialogTitle>
             </DialogHeader>
@@ -612,7 +613,7 @@ export default function Membros() {
 
         {/* Change Role Dialog */}
         <Dialog open={isChangeRoleOpen} onOpenChange={setIsChangeRoleOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle className="font-serif">Alterar Permissão</DialogTitle>
             </DialogHeader>
@@ -620,7 +621,7 @@ export default function Membros() {
               <p className="text-muted-foreground">
                 Escolha o nível de acesso para este membro:
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
                 <Button
                   variant="outline"
                   className="h-auto py-4 flex flex-col gap-2"

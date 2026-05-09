@@ -194,7 +194,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="animate-fade-in">
           <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
@@ -207,9 +207,9 @@ export default function Dashboard() {
 
         {/* Admin Stats */}
         {isAdmin && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <Card className="bg-gradient-primary text-primary-foreground border-0 shadow-glow">
-              <CardContent className="p-4">
+              <CardContent className="p-4 min-h-[92px]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm opacity-90">Escalas Ativas</p>
@@ -220,7 +220,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             <Card className="border-0 shadow-md">
-              <CardContent className="p-4">
+              <CardContent className="p-4 min-h-[92px]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Membros</p>
@@ -231,7 +231,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             <Card className="border-0 shadow-md">
-              <CardContent className="p-4">
+              <CardContent className="p-4 min-h-[92px]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Músicas</p>
@@ -242,7 +242,7 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             <Card className="border-0 shadow-md cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/escalas')}>
-              <CardContent className="p-4">
+              <CardContent className="p-4 min-h-[92px]">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Nova Escala</p>
@@ -374,24 +374,22 @@ export default function Dashboard() {
                 {minhasEscalas.slice(1).map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-secondary/30 cursor-pointer transition-colors"
+                    className="flex items-start gap-3 p-3 sm:p-4 rounded-lg border hover:bg-secondary/30 cursor-pointer transition-colors"
                     onClick={() => navigate(`/escalas/${item.escala.id}`)}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-secondary flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-lg bg-secondary flex flex-col items-center justify-center shrink-0">
                         <span className="text-xs text-muted-foreground uppercase">
                           {format(new Date(item.escala.data + 'T00:00:00'), 'MMM', { locale: ptBR })}
                         </span>
                         <span className="text-lg font-bold">
                           {format(new Date(item.escala.data + 'T00:00:00'), 'd')}
                         </span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{item.escala.titulo}</p>
-                        <p className="text-sm text-muted-foreground">{item.funcao_na_escala}</p>
-                      </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                        <p className="font-medium leading-snug break-words">{item.escala.titulo}</p>
+                        <p className="text-sm text-muted-foreground">{item.funcao_na_escala}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-3" />
                   </div>
                 ))}
               </div>

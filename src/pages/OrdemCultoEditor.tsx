@@ -611,23 +611,26 @@ export default function OrdemCultoEditor() {
                         return (
                           <label
                             key={item.id}
-                            className={`flex items-center gap-3 text-sm p-2 rounded-lg cursor-pointer transition-colors ${
+                            className={`flex items-start gap-3 text-sm p-2 rounded-lg cursor-pointer transition-colors ${
                               isSelected ? 'bg-primary/5 border border-primary/20' : 'hover:bg-secondary/50'
                             } ${isReadOnly ? 'pointer-events-none' : ''}`}
                           >
                             <Checkbox
+                              className="mt-0.5"
                               checked={isSelected}
                               onCheckedChange={() => toggleMusica(item.musica.id)}
                               disabled={isReadOnly}
                             />
-                            <span className={`font-medium ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {item.musica.titulo}
+                            <span className="min-w-0 flex-1">
+                              <span className={`block font-medium leading-snug break-words ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                {item.musica.titulo}
+                              </span>
+                              {item.musica.artista && (
+                                <span className="block text-muted-foreground leading-snug break-words">{item.musica.artista}</span>
+                              )}
                             </span>
-                            {item.musica.artista && (
-                              <span className="text-muted-foreground">- {item.musica.artista}</span>
-                            )}
                             {item.musica.tom && (
-                              <Badge variant="secondary" className="text-xs ml-auto">
+                              <Badge variant="secondary" className="text-xs shrink-0">
                                 {item.musica.tom}
                               </Badge>
                             )}
@@ -773,7 +776,7 @@ export default function OrdemCultoEditor() {
   if (isNew) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-2xl mx-auto">
+        <div className="px-3 py-4 sm:p-4 lg:p-8 max-w-2xl mx-auto">
           <Button
             variant="ghost"
             className="mb-6"
@@ -784,7 +787,7 @@ export default function OrdemCultoEditor() {
           </Button>
 
           <Card className="border-0 shadow-lg">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-4 sm:p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-serif font-bold">Nova Ordem de Culto</h2>
                 <p className="text-muted-foreground mt-1">Preencha as informações básicas para começar.</p>
@@ -827,7 +830,7 @@ export default function OrdemCultoEditor() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 space-y-6 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
         {/* Header */}
         <div className="animate-fade-in">
           <Button
@@ -896,21 +899,21 @@ export default function OrdemCultoEditor() {
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:flex-wrap">
                   {isAdmin && (
-                    <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={handleSave} disabled={isSaving}>
                       <Save className="w-4 h-4 mr-2" />
                       Salvar
                     </Button>
                   )}
                   {!hasUnsavedChanges && (
-                    <Button variant="outline" onClick={buildMensagemWhatsApp}>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={buildMensagemWhatsApp}>
                       <Copy className="w-4 h-4 mr-2" />
                       Mensagem
                     </Button>
                   )}
                   {isAdmin && ordem?.status !== 'publicada' && (
-                    <Button variant="gradient" onClick={handlePublish} disabled={isSaving}>
+                    <Button variant="gradient" className="w-full sm:w-auto" onClick={handlePublish} disabled={isSaving}>
                       <Send className="w-4 h-4 mr-2" />
                       Publicar
                     </Button>
@@ -920,7 +923,7 @@ export default function OrdemCultoEditor() {
 
               {/* Escala selector */}
               {isAdmin && (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <Label className="text-sm text-muted-foreground whitespace-nowrap">Escala vinculada:</Label>
                   <Select
                     value={escalaId || 'none'}
@@ -929,7 +932,7 @@ export default function OrdemCultoEditor() {
                       setHasUnsavedChanges(true);
                     }}
                   >
-                    <SelectTrigger className="w-72">
+                    <SelectTrigger className="w-full sm:w-72">
                       <SelectValue placeholder="Selecione uma escala..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -948,7 +951,7 @@ export default function OrdemCultoEditor() {
         </div>
 
         <Dialog open={isMensagemDialogOpen} onOpenChange={setIsMensagemDialogOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Mensagem para WhatsApp</DialogTitle>
             </DialogHeader>
@@ -956,17 +959,17 @@ export default function OrdemCultoEditor() {
               <Textarea
                 value={mensagemWhatsApp}
                 onChange={(event) => setMensagemWhatsApp(event.target.value)}
-                className="min-h-[360px] font-mono text-sm"
+                className="min-h-[300px] sm:min-h-[360px] font-mono text-sm"
               />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsMensagemDialogOpen(false)}>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsMensagemDialogOpen(false)}>
                   Fechar
                 </Button>
-                <Button onClick={handleCopyMensagem}>
+                <Button className="w-full sm:w-auto" onClick={handleCopyMensagem}>
                   <Copy className="w-4 h-4 mr-2" />
                   Copiar mensagem
                 </Button>
-                <Button variant="gradient" onClick={handleCopyAndOpenWhatsApp}>
+                <Button variant="gradient" className="w-full sm:w-auto" onClick={handleCopyAndOpenWhatsApp}>
                   <Send className="w-4 h-4 mr-2" />
                   Copiar e abrir WhatsApp
                 </Button>
@@ -992,7 +995,7 @@ export default function OrdemCultoEditor() {
                   className="border-0 shadow-md animate-slide-up"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <CardContent className="p-4 lg:p-6">
+                  <CardContent className="p-3 sm:p-4 lg:p-6">
                     <div className="flex gap-3">
                       {/* Reorder buttons */}
                       {isAdmin && (
@@ -1020,13 +1023,13 @@ export default function OrdemCultoEditor() {
 
                       {/* Block content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex min-w-0 items-center gap-2">
                             <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
                               {index + 1}
                             </span>
-                            <Icon className="w-4 h-4 text-primary" />
-                            <h3 className="font-semibold">{BLOCO_TIPO_LABELS[bloco.tipo]}</h3>
+                            <Icon className="w-4 h-4 text-primary shrink-0" />
+                            <h3 className="font-semibold leading-snug break-words">{BLOCO_TIPO_LABELS[bloco.tipo]}</h3>
                           </div>
                           {isAdmin && (
                             <Button
