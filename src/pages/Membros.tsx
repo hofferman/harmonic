@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2 } from 'lucide-react';
 
 interface MembroFuncao {
   id: string;
@@ -23,9 +23,12 @@ interface Membro {
   id: string;
   nome: string;
   created_at: string;
+  must_change_password?: boolean;
   role?: 'admin' | 'membro';
   funcoes: MembroFuncao[];
 }
+
+const SENHA_PADRAO = 'Mudar@123';
 
 const FUNCOES_DISPONIVEIS = [
   'Vocal Principal',
@@ -61,6 +64,13 @@ export default function Membros() {
   // Change role dialog
   const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
   const [roleMembroId, setRoleMembroId] = useState<string | null>(null);
+  const [isDeletingUserId, setIsDeletingUserId] = useState<string | null>(null);
+
+  // Create user dialog
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [newUserNome, setNewUserNome] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -81,10 +91,23 @@ export default function Membros() {
     setIsLoading(true);
     try {
       // Fetch all profiles
-      const { data: profilesData, error: profilesError } = await supabase
+      let { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, nome, created_at')
+        .select('id, nome, created_at, must_change_password')
         .order('nome');
+
+      if (profilesError && profilesError.message.includes('must_change_password')) {
+        const fallback = await supabase
+          .from('profiles')
+          .select('id, nome, created_at')
+          .order('nome');
+
+        profilesData = fallback.data?.map(profile => ({
+          ...profile,
+          must_change_password: false,
+        })) ?? null;
+        profilesError = fallback.error;
+      }
 
       if (profilesError) throw profilesError;
 
@@ -211,6 +234,80 @@ export default function Membros() {
     }
   };
 
+  const handleCreateUser = async () => {
+    const nome = newUserNome.trim();
+    const email = newUserEmail.trim().toLowerCase();
+
+    if (!nome || !email) {
+      toast({
+        title: 'Preencha os dados',
+        description: 'Nome e email são obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const { error } = await supabase.functions.invoke('admin-create-user', {
+        body: { nome, email },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Usuário criado!',
+        description: `Senha temporária: ${SENHA_PADRAO}. O usuário deverá trocar no primeiro login.`,
+      });
+      setIsCreateUserOpen(false);
+      setNewUserNome('');
+      setNewUserEmail('');
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao criar usuário',
+        description: error.message === 'Failed to send a request to the Edge Function'
+          ? 'A função admin-create-user ainda não está publicada no Supabase. Publique a Edge Function para criar usuários já confirmados.'
+          : error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (membro: Membro) => {
+    if (membro.id === user?.id) return;
+
+    const confirmed = confirm(
+      `Excluir o usuário ${membro.nome}? Esta ação remove o login e os dados vinculados a este membro.`,
+    );
+
+    if (!confirmed) return;
+
+    setIsDeletingUserId(membro.id);
+    try {
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: membro.id },
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Usuário excluído!' });
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir usuário',
+        description: error.message === 'Failed to send a request to the Edge Function'
+          ? 'A função admin-delete-user ainda não está publicada no Supabase.'
+          : error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingUserId(null);
+    }
+  };
+
   const filteredMembros = membros.filter(m =>
     m.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -236,6 +333,10 @@ export default function Membros() {
               Gerencie os membros e suas funções
             </p>
           </div>
+          <Button variant="gradient" onClick={() => setIsCreateUserOpen(true)}>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Criar usuário
+          </Button>
         </div>
 
         {/* Search */}
@@ -335,6 +436,11 @@ export default function Membros() {
                               Membro
                             </Badge>
                           )}
+                          {membro.must_change_password && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                              Trocar senha
+                            </Badge>
+                          )}
                         </div>
                         
                         {/* Functions */}
@@ -374,16 +480,32 @@ export default function Membros() {
                     </div>
                     
                     {membro.id !== user?.id && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setRoleMembroId(membro.id);
-                          setIsChangeRoleOpen(true);
-                        }}
-                      >
-                        Alterar Permissão
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRoleMembroId(membro.id);
+                            setIsChangeRoleOpen(true);
+                          }}
+                        >
+                          Alterar Permissão
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteUser(membro)}
+                          disabled={isDeletingUserId === membro.id}
+                        >
+                          {isDeletingUserId === membro.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 mr-2" />
+                          )}
+                          Excluir
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -418,6 +540,54 @@ export default function Membros() {
               </div>
               <Button className="w-full" variant="gradient" onClick={handleAddFuncao}>
                 Adicionar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create User Dialog */}
+        <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-serif">Criar usuário</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="rounded-md border bg-secondary/40 p-3 text-sm">
+                Senha temporária: <span className="font-semibold">{SENHA_PADRAO}</span>
+                <p className="text-muted-foreground mt-1">
+                  No primeiro login, o usuário será obrigado a criar uma nova senha.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-user-nome">Nome</Label>
+                <Input
+                  id="new-user-nome"
+                  value={newUserNome}
+                  onChange={(event) => setNewUserNome(event.target.value)}
+                  placeholder="Nome completo"
+                  disabled={isCreatingUser}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-user-email">Email</Label>
+                <Input
+                  id="new-user-email"
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(event) => setNewUserEmail(event.target.value)}
+                  placeholder="usuario@email.com"
+                  disabled={isCreatingUser}
+                />
+              </div>
+              <Button className="w-full" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
+                {isCreatingUser ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar com senha temporária'
+                )}
               </Button>
             </div>
           </DialogContent>

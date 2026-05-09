@@ -192,16 +192,19 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          must_change_password: boolean
           nome: string
         }
         Insert: {
           created_at?: string
           id: string
+          must_change_password?: boolean
           nome: string
         }
         Update: {
           created_at?: string
           id?: string
+          must_change_password?: boolean
           nome?: string
         }
         Relationships: []

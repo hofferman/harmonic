@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
@@ -29,7 +29,7 @@ import {
   Plus,
   Save,
   Send,
-  FileDown,
+  Copy,
   Music,
   Users,
   BookOpen,
@@ -54,7 +54,7 @@ import type {
   EspecialConteudo,
 } from '@/types/ordemCulto';
 import { BLOCO_TIPO_LABELS, BLOCO_TIPOS_ORDEM } from '@/types/ordemCulto';
-import { gerarOrdemCultoPdf } from '@/lib/ordemCultoPdf';
+import { gerarOrdemCultoMensagem } from '@/lib/ordemCultoMensagem';
 
 interface EscalaOption {
   id: string;
@@ -118,6 +118,9 @@ export default function OrdemCultoEditor() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(isNew);
   const [newTitulo, setNewTitulo] = useState('');
   const [newData, setNewData] = useState('');
+  const [isMensagemDialogOpen, setIsMensagemDialogOpen] = useState(false);
+  const [mensagemWhatsApp, setMensagemWhatsApp] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -162,6 +165,7 @@ export default function OrdemCultoEditor() {
       setTitulo(typedOrdem.titulo);
       setData(typedOrdem.data);
       setEscalaId(typedOrdem.escala_id);
+      setHasUnsavedChanges(false);
 
       // Fetch blocos
       const { data: blocosData, error: blocosError } = await supabase
@@ -185,6 +189,7 @@ export default function OrdemCultoEditor() {
           contents[b.id] = b.conteudo;
         });
         setBlocoContents(contents);
+        setHasUnsavedChanges(false);
       }
     } catch (error) {
       console.error('Error fetching ordem:', error);
@@ -337,6 +342,7 @@ export default function OrdemCultoEditor() {
 
       toast({ title: 'Salvo com sucesso!' });
       setOrdem({ ...ordem, titulo, data, escala_id: escalaId });
+      setHasUnsavedChanges(false);
     } catch (error: any) {
       toast({
         title: 'Erro ao salvar',
@@ -466,6 +472,7 @@ export default function OrdemCultoEditor() {
   };
 
   const updateBlocoContent = (blocoId: string, field: string, value: string) => {
+    setHasUnsavedChanges(true);
     setBlocoContents(prev => ({
       ...prev,
       [blocoId]: {
@@ -475,13 +482,61 @@ export default function OrdemCultoEditor() {
     }));
   };
 
-  const handleExportPdf = () => {
+  const buildMensagemWhatsApp = () => {
     if (!ordem) return;
-    gerarOrdemCultoPdf(
+    const mensagem = gerarOrdemCultoMensagem(
       { ...ordem, titulo, data },
       blocos,
       blocoContents,
       escalaId ? { membros: escalaMembros, musicas: escalaMusicas } : undefined
+    );
+    setMensagemWhatsApp(mensagem);
+    setIsMensagemDialogOpen(true);
+    return mensagem;
+  };
+
+  const handleCopyMensagem = async () => {
+    const mensagem = mensagemWhatsApp || buildMensagemWhatsApp();
+    if (!mensagem) return;
+
+    try {
+      await navigator.clipboard.writeText(mensagem);
+      toast({
+        title: 'Mensagem copiada!',
+        description: 'Agora é só colar no WhatsApp.',
+      });
+    } catch (error) {
+      console.error('Error copying message:', error);
+      toast({
+        title: 'Não foi possível copiar automaticamente',
+        description: 'Selecione o texto da prévia e copie manualmente.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCopyAndOpenWhatsApp = async () => {
+    const mensagem = mensagemWhatsApp || buildMensagemWhatsApp();
+    if (!mensagem) return;
+
+    try {
+      await navigator.clipboard.writeText(mensagem);
+      toast({
+        title: 'Mensagem copiada!',
+        description: 'O WhatsApp será aberto para você colar ou enviar.',
+      });
+    } catch (error) {
+      console.error('Error copying message:', error);
+      toast({
+        title: 'Abrindo WhatsApp',
+        description: 'Não consegui copiar automaticamente, mas a mensagem vai preenchida no link.',
+      });
+    }
+
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(mensagem)}`,
+      '_blank',
+      'noopener,noreferrer',
     );
   };
 
@@ -515,6 +570,7 @@ export default function OrdemCultoEditor() {
           const updated = current.includes(musicaId)
             ? current.filter(id => id !== musicaId)
             : [...current, musicaId];
+          setHasUnsavedChanges(true);
           setBlocoContents(prev => ({
             ...prev,
             [bloco.id]: { ...prev[bloco.id], musica_ids: updated },
@@ -796,7 +852,10 @@ export default function OrdemCultoEditor() {
                     <>
                       <Input
                         value={titulo}
-                        onChange={(e) => setTitulo(e.target.value)}
+                        onChange={(e) => {
+                          setTitulo(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
                         className="text-2xl font-serif font-bold border-0 border-b rounded-none px-0 focus-visible:ring-0 h-auto py-1"
                         placeholder="Título da ordem"
                       />
@@ -804,7 +863,10 @@ export default function OrdemCultoEditor() {
                         <Input
                           type="date"
                           value={data}
-                          onChange={(e) => setData(e.target.value)}
+                          onChange={(e) => {
+                            setData(e.target.value);
+                            setHasUnsavedChanges(true);
+                          }}
                           className="w-auto"
                         />
                         <Badge className={ordem?.status === 'publicada'
@@ -841,10 +903,12 @@ export default function OrdemCultoEditor() {
                       Salvar
                     </Button>
                   )}
-                  <Button variant="outline" onClick={handleExportPdf}>
-                    <FileDown className="w-4 h-4 mr-2" />
-                    PDF
-                  </Button>
+                  {!hasUnsavedChanges && (
+                    <Button variant="outline" onClick={buildMensagemWhatsApp}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Mensagem
+                    </Button>
+                  )}
                   {isAdmin && ordem?.status !== 'publicada' && (
                     <Button variant="gradient" onClick={handlePublish} disabled={isSaving}>
                       <Send className="w-4 h-4 mr-2" />
@@ -860,7 +924,10 @@ export default function OrdemCultoEditor() {
                   <Label className="text-sm text-muted-foreground whitespace-nowrap">Escala vinculada:</Label>
                   <Select
                     value={escalaId || 'none'}
-                    onValueChange={(v) => setEscalaId(v === 'none' ? null : v)}
+                    onValueChange={(v) => {
+                      setEscalaId(v === 'none' ? null : v);
+                      setHasUnsavedChanges(true);
+                    }}
                   >
                     <SelectTrigger className="w-72">
                       <SelectValue placeholder="Selecione uma escala..." />
@@ -879,6 +946,34 @@ export default function OrdemCultoEditor() {
             </div>
           )}
         </div>
+
+        <Dialog open={isMensagemDialogOpen} onOpenChange={setIsMensagemDialogOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Mensagem para WhatsApp</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Textarea
+                value={mensagemWhatsApp}
+                onChange={(event) => setMensagemWhatsApp(event.target.value)}
+                className="min-h-[360px] font-mono text-sm"
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsMensagemDialogOpen(false)}>
+                  Fechar
+                </Button>
+                <Button onClick={handleCopyMensagem}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar mensagem
+                </Button>
+                <Button variant="gradient" onClick={handleCopyAndOpenWhatsApp}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Copiar e abrir WhatsApp
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Blocos */}
         {isLoading ? (

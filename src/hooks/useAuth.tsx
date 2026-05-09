@@ -8,6 +8,7 @@ interface Profile {
   id: string;
   nome: string;
   created_at: string;
+  must_change_password: boolean;
 }
 
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
+      setProfile(null);
+      setRole(null);
+
       // Fetch profile
       const { data: profileData } = await supabase
         .from('profiles')
@@ -56,6 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
+    }
+  };
+
+  const refreshUserData = async () => {
+    if (user?.id) {
+      await fetchUserData(user.id);
     }
   };
 
@@ -137,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     signOut,
+    refreshUserData,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

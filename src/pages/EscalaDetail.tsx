@@ -17,8 +17,11 @@ import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ArrowLeft, Calendar, Users, Music, Plus, Trash2, 
-  ChevronUp, ChevronDown, ExternalLink, Star, FileText, X
+  ChevronUp, ChevronDown, ExternalLink, Star, FileText, X, Edit2, ChevronsUpDown, Check
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Profile {
@@ -106,9 +109,40 @@ export default function EscalaDetail() {
   const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
   const [viewingMusica, setViewingMusica] = useState<EscalaMusica['musica'] | null>(null);
 
+  // Edit music dialog
+  const [isEditMusicOpen, setIsEditMusicOpen] = useState(false);
+  const [editingEscalaMusica, setEditingEscalaMusica] = useState<EscalaMusica | null>(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editArtista, setEditArtista] = useState('');
+  const [editTom, setEditTom] = useState('');
+  const [editLink, setEditLink] = useState('');
+  const [isEditingSaving, setIsEditingSaving] = useState(false);
+  const [artistaPopoverOpen, setArtistaPopoverOpen] = useState(false);
+
+  // Edit letra dialog
+  const [isEditLetraOpen, setIsEditLetraOpen] = useState(false);
+  const [editingLetraMusica, setEditingLetraMusica] = useState<EscalaMusica['musica'] | null>(null);
+  const [editLetra, setEditLetra] = useState('');
+  const [isEditLeiraSaving, setIsEditLeiraSaving] = useState(false);
+
   const openLetraDialog = (musica: EscalaMusica['musica']) => {
     setViewingMusica(musica);
     setIsLetraDialogOpen(true);
+  };
+
+  const openEditMusicDialog = (escalaMusica: EscalaMusica) => {
+    setEditingEscalaMusica(escalaMusica);
+    setEditTitulo(escalaMusica.musica.titulo);
+    setEditArtista(escalaMusica.musica.artista || '');
+    setEditTom(escalaMusica.musica.tom || '');
+    setEditLink(escalaMusica.musica.link || '');
+    setIsEditMusicOpen(true);
+  };
+
+  const openEditLetraDialog = (musica: EscalaMusica['musica']) => {
+    setEditingLetraMusica(musica);
+    setEditLetra(musica.letra || '');
+    setIsEditLetraOpen(true);
   };
 
   useEffect(() => {
@@ -372,6 +406,74 @@ export default function EscalaDetail() {
     }
   };
 
+  const handleEditMusic = async () => {
+    if (!editTitulo.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'O título é obrigatório.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!editingEscalaMusica) return;
+
+    setIsEditingSaving(true);
+    try {
+      const musicaData = {
+        titulo: editTitulo.trim(),
+        artista: editArtista.trim() || null,
+        tom: editTom.trim() || null,
+        link: editLink.trim() || null,
+      };
+
+      const { error } = await supabase
+        .from('musicas')
+        .update(musicaData)
+        .eq('id', editingEscalaMusica.musica.id);
+
+      if (error) throw error;
+      
+      toast({ title: 'Música atualizada!' });
+      setIsEditMusicOpen(false);
+      fetchEscalaData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEditingSaving(false);
+    }
+  };
+
+  const handleEditLetra = async () => {
+    if (!editingLetraMusica) return;
+
+    setIsEditLeiraSaving(true);
+    try {
+      const { error } = await supabase
+        .from('musicas')
+        .update({ letra: editLetra.trim() || null })
+        .eq('id', editingLetraMusica.id);
+
+      if (error) throw error;
+      
+      toast({ title: 'Letra/cifra salva!' });
+      setIsEditLetraOpen(false);
+      fetchEscalaData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsEditLeiraSaving(false);
+    }
+  };
+
   const getStatusBadge = () => {
     if (!escala) return null;
     const date = new Date(escala.data + 'T00:00:00');
@@ -449,9 +551,210 @@ export default function EscalaDetail() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Members */}
+        <div className="space-y-6">
+          {/* Songs */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="font-serif flex items-center gap-2">
+                <Music className="w-5 h-5 text-primary" />
+                Repertório ({musicas.length})
+              </CardTitle>
+              {isAdmin && (
+                <Dialog open={isAddMusicOpen} onOpenChange={setIsAddMusicOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="font-serif">Adicionar Música</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label>Música</Label>
+                        <Select value={selectedMusica} onValueChange={setSelectedMusica}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allMusicas.map(m => (
+                              <SelectItem key={m.id} value={m.id}>
+                                <div className="flex flex-col">
+                                  <span>{m.titulo} {m.artista && `- ${m.artista}`}</span>
+                                  {(m.ultimaVezTocada || m.ultimoMinistro) && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {m.ultimaVezTocada && `Tocada em ${format(new Date(m.ultimaVezTocada + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}`}
+                                      {m.ultimaVezTocada && m.ultimoMinistro && ' • '}
+                                      {m.ultimoMinistro && `Último ministro: ${m.ultimoMinistro}`}
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ministro (opcional)</Label>
+                        <Select value={selectedMinistro} onValueChange={setSelectedMinistro}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione quem vai ministrar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allProfiles.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Não encontrou? <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/musicas')}>
+                          Cadastre uma nova música
+                        </Button>
+                      </p>
+                      <Button className="w-full" variant="gradient" onClick={handleAddMusic}>
+                        Adicionar
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </CardHeader>
+            <CardContent>
+              {musicas.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Music className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma música no repertório</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {musicas.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-4 p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group border border-secondary/20"
+                    >
+                      {isAdmin && (
+                        <div className="flex flex-col gap-1 pt-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={index === 0}
+                            onClick={() => handleMoveMusic(item, 'up')}
+                            title="Mover para cima"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={index === musicas.length - 1}
+                            onClick={() => handleMoveMusic(item, 'down')}
+                            title="Mover para baixo"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <span className="flex items-center justify-center min-w-max w-8 h-8 rounded-full bg-primary/10 text-sm font-bold text-primary shrink-0">
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-base">{item.musica.titulo}</p>
+                          </div>
+                          {item.musica.letra && (
+                            <Badge variant="secondary" className="shrink-0 text-xs">
+                              <FileText className="w-3 h-3 mr-1" />
+                              Cifra
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          {item.musica.artista && (
+                            <p><span className="font-medium">Artista:</span> {item.musica.artista}</p>
+                          )}
+                          {item.musica.tom && (
+                            <p><span className="font-medium">Tom:</span> {item.musica.tom}</p>
+                          )}
+                          {item.ministro && (
+                            <p><span className="font-medium">Ministro:</span> {item.ministro.nome}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0 flex-wrap justify-end pt-1">
+                        {item.musica.letra && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openLetraDialog(item.musica)}
+                            title="Ver letra/cifra"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {item.musica.link && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            asChild
+                          >
+                            <a href={item.musica.link} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <>
+                            {item.musica.letra && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => openEditLetraDialog(item.musica)}
+                                title="Editar letra/cifra"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEditMusicDialog(item)}
+                              title="Editar música"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleRemoveMusic(item.id)}
+                              title="Remover música"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Members */}
+          <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="font-serif flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
@@ -570,174 +873,6 @@ export default function EscalaDetail() {
               )}
             </CardContent>
           </Card>
-
-          {/* Songs */}
-          <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-serif flex items-center gap-2">
-                <Music className="w-5 h-5 text-primary" />
-                Repertório ({musicas.length})
-              </CardTitle>
-              {isAdmin && (
-                <Dialog open={isAddMusicOpen} onOpenChange={setIsAddMusicOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <Plus className="w-4 h-4 mr-1" />
-                      Adicionar
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle className="font-serif">Adicionar Música</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <Label>Música</Label>
-                        <Select value={selectedMusica} onValueChange={setSelectedMusica}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allMusicas.map(m => (
-                              <SelectItem key={m.id} value={m.id}>
-                                <div className="flex flex-col">
-                                  <span>{m.titulo} {m.artista && `- ${m.artista}`}</span>
-                                  {(m.ultimaVezTocada || m.ultimoMinistro) && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {m.ultimaVezTocada && `Tocada em ${format(new Date(m.ultimaVezTocada + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}`}
-                                      {m.ultimaVezTocada && m.ultimoMinistro && ' • '}
-                                      {m.ultimoMinistro && `Último ministro: ${m.ultimoMinistro}`}
-                                    </span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Ministro (opcional)</Label>
-                        <Select value={selectedMinistro} onValueChange={setSelectedMinistro}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione quem vai ministrar..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allProfiles.map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Não encontrou? <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/musicas')}>
-                          Cadastre uma nova música
-                        </Button>
-                      </p>
-                      <Button className="w-full" variant="gradient" onClick={handleAddMusic}>
-                        Adicionar
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </CardHeader>
-            <CardContent>
-              {musicas.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Music className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhuma música no repertório</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {musicas.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors group"
-                    >
-                      {isAdmin && (
-                        <div className="flex flex-col gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5"
-                            disabled={index === 0}
-                            onClick={() => handleMoveMusic(item, 'up')}
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5"
-                            disabled={index === musicas.length - 1}
-                            onClick={() => handleMoveMusic(item, 'down')}
-                            title="Mover para baixo"
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                      <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary shrink-0">
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{item.musica.titulo}</p>
-                          {item.musica.letra && (
-                            <Badge variant="secondary" className="shrink-0 text-xs">
-                              <FileText className="w-3 h-3 mr-1" />
-                              Cifra
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {item.musica.artista || 'Artista desconhecido'}
-                          {item.musica.tom && ` • Tom: ${item.musica.tom}`}
-                          {item.ministro && ` • Ministro: ${item.ministro.nome}`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {item.musica.letra && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openLetraDialog(item.musica)}
-                            title="Ver letra/cifra"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {item.musica.link && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                          >
-                            <a href={item.musica.link} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleRemoveMusic(item.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Letra/Cifra View Dialog */}
@@ -766,6 +901,164 @@ export default function EscalaDetail() {
               <Button variant="outline" onClick={() => setIsLetraDialogOpen(false)}>
                 Fechar
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Music Dialog */}
+        <Dialog open={isEditMusicOpen} onOpenChange={setIsEditMusicOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="font-serif">Editar Música</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-titulo">Título *</Label>
+                <Input
+                  id="edit-titulo"
+                  value={editTitulo}
+                  onChange={(e) => setEditTitulo(e.target.value)}
+                  placeholder="Nome da música"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-artista">Artista</Label>
+                <Popover open={artistaPopoverOpen} onOpenChange={setArtistaPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={artistaPopoverOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {editArtista || "Selecione ou digite um artista..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Buscar ou adicionar artista..." 
+                        value={editArtista}
+                        onValueChange={setEditArtista}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="py-2 px-4 text-sm">
+                            {editArtista.trim() ? (
+                              <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  setArtistaPopoverOpen(false);
+                                }}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar "{editArtista}"
+                              </Button>
+                            ) : (
+                              "Digite o nome do artista"
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="Artistas cadastrados">
+                          {Array.from(new Set(allMusicas.map(m => m.artista).filter((a): a is string => a !== null))).map((artist) => (
+                            <CommandItem
+                              key={artist}
+                              value={artist}
+                              onSelect={(currentValue) => {
+                                setEditArtista(currentValue);
+                                setArtistaPopoverOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  editArtista === artist ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {artist}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-tom">Tom</Label>
+                  <Input
+                    id="edit-tom"
+                    value={editTom}
+                    onChange={(e) => setEditTom(e.target.value)}
+                    placeholder="Ex: G, Am, D"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-link">Link</Label>
+                  <Input
+                    id="edit-link"
+                    value={editLink}
+                    onChange={(e) => setEditLink(e.target.value)}
+                    placeholder="YouTube, Cifra..."
+                  />
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                variant="gradient"
+                onClick={handleEditMusic}
+                disabled={isEditingSaving}
+              >
+                {isEditingSaving ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Letra/Cifra Dialog */}
+        <Dialog open={isEditLetraOpen} onOpenChange={setIsEditLetraOpen}>
+          <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="font-serif flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Editar Letra / Cifra - {editingLetraMusica?.titulo}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {editingLetraMusica?.artista && (
+                <span>Artista: {editingLetraMusica.artista}</span>
+              )}
+              {editingLetraMusica?.tom && (
+                <span>Tom: {editingLetraMusica.tom}</span>
+              )}
+            </div>
+            <div className="flex-1 flex flex-col gap-4 mt-4 min-h-0">
+              <div className="flex-1 min-h-0">
+                <Textarea
+                  value={editLetra}
+                  onChange={(e) => setEditLetra(e.target.value)}
+                  placeholder={`Cole aqui a letra e/ou cifra da música...\n\nExemplo:\n\n[Intro] G  D  Em  C\n\n        G                D\nAqui começa a primeira linha\n        Em               C\nE continua a segunda linha\n\n[Refrão]\n        G        D\nEste é o refrão\n        Em       C\nQue todos cantam`}
+                  className="h-full min-h-[400px] font-mono text-sm resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditLetraOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="gradient"
+                  onClick={handleEditLetra}
+                  disabled={isEditLeiraSaving}
+                >
+                  {isEditLeiraSaving ? 'Salvando...' : 'Salvar Letra/Cifra'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

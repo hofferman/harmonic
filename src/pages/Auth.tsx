@@ -12,7 +12,7 @@ import { Music2, Loader2 } from 'lucide-react';
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, signIn, signUp } = useAuth();
+  const { user, profile, signIn, signUp } = useAuth();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -23,10 +23,10 @@ export default function Auth() {
   const [signupNome, setSignupNome] = useState('');
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
+    if (user && profile) {
+      navigate(profile.must_change_password ? '/change-password' : '/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, profile, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +35,16 @@ export default function Auth() {
     const { error } = await signIn(loginEmail, loginPassword);
     
     if (error) {
+      let message = error.message;
+      if (error.message === 'Invalid login credentials') {
+        message = 'Email ou senha incorretos';
+      }
+      if (error.message === 'Email not confirmed') {
+        message = 'Email não confirmado. Confirme este usuário no painel do Supabase ou publique a função admin-create-user para criar usuários já confirmados.';
+      }
       toast({
         title: 'Erro ao entrar',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email ou senha incorretos' 
-          : error.message,
+        description: message,
         variant: 'destructive',
       });
     } else {
@@ -47,7 +52,6 @@ export default function Auth() {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso.',
       });
-      navigate('/dashboard');
     }
     
     setIsLoading(false);
