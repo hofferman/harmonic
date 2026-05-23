@@ -11,6 +11,7 @@ import { format, isToday, isTomorrow, isPast, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Music, Users, Clock, ChevronRight, AlertCircle, Star } from 'lucide-react';
 import { readPageCache, writePageCache } from '@/lib/pageCache';
+import { formatEscalaMembroRole } from '@/lib/escalaFormat';
 
 interface Escala {
   id: string;
@@ -23,6 +24,7 @@ interface EscalaMembro {
   id: string;
   funcao_na_escala: string;
   observacao: string | null;
+  setor?: { nome: string } | null;
   escala: Escala;
 }
 
@@ -101,6 +103,7 @@ export default function Dashboard() {
           id,
           funcao_na_escala,
           observacao,
+          setor:setores(nome),
           escala:escalas(id, data, titulo, created_at)
         `)
         .eq('profile_id', user?.id)
@@ -281,7 +284,7 @@ export default function Dashboard() {
                   <div>
                     <h3 className="text-xl font-semibold">{proximaEscala.escala.titulo}</h3>
                     <Badge variant="secondary" className="mt-2">
-                      {proximaEscala.funcao_na_escala}
+                      {formatEscalaMembroRole(proximaEscala)}
                     </Badge>
                   </div>
                   
@@ -387,7 +390,7 @@ export default function Dashboard() {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="font-medium leading-snug break-words">{item.escala.titulo}</p>
-                        <p className="text-sm text-muted-foreground">{item.funcao_na_escala}</p>
+                        <p className="text-sm text-muted-foreground">{formatEscalaMembroRole(item)}</p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-3" />
                   </div>

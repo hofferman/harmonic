@@ -37,10 +37,11 @@ const navItems = [
   { href: '/ordens-culto', label: 'Ordem de Culto', icon: ListOrdered, adminOnly: false },
   { href: '/membros', label: 'Membros', icon: Users, adminOnly: true },
   { href: '/musicas', label: 'Músicas', icon: Music, adminOnly: true },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings, adminOnly: true },
 ];
 
 export default function AppLayout({ children }: AppLayoutProps) {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, canViewOrdensCulto, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -59,7 +60,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       .slice(0, 2);
   };
 
-  const filteredNavItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.href === '/ordens-culto' && !isAdmin && !canViewOrdensCulto) {
+      return false;
+    }
+    return !item.adminOnly || isAdmin;
+  });
 
   const NavLinks = ({ mobile = false }: { mobile?: boolean }) => (
     <nav className={cn("space-y-1", mobile && "mt-8")}>

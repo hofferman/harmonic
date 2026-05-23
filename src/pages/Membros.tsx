@@ -20,6 +20,11 @@ interface MembroFuncao {
   funcao: string;
 }
 
+interface Setor {
+  id: string;
+  nome: string;
+}
+
 interface Membro {
   id: string;
   nome: string;
@@ -27,6 +32,7 @@ interface Membro {
   must_change_password?: boolean;
   role?: 'admin' | 'membro';
   funcoes: MembroFuncao[];
+  setores: Setor[];
 }
 
 const SENHA_PADRAO = 'Mudar@123';
@@ -50,13 +56,19 @@ export default function Membros() {
   const { toast } = useToast();
 
   const [membros, setMembros] = useState<Membro[]>([]);
+  const [setores, setSetores] = useState<Setor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Add function dialog
   const [isAddFuncaoOpen, setIsAddFuncaoOpen] = useState(false);
+  const [isAddSetorOpen, setIsAddSetorOpen] = useState(false);
+  const [isCreateSetorOpen, setIsCreateSetorOpen] = useState(false);
   const [selectedMembro, setSelectedMembro] = useState<Membro | null>(null);
   const [novaFuncao, setNovaFuncao] = useState('');
+  const [novoSetorId, setNovoSetorId] = useState('');
+  const [novoSetorNome, setNovoSetorNome] = useState('');
+  const [isCreatingSetor, setIsCreatingSetor] = useState(false);
 
   // Edit name
   const [editingNomeId, setEditingNomeId] = useState<string | null>(null);
@@ -126,10 +138,21 @@ export default function Membros() {
         .from('user_roles')
         .select('user_id, role');
 
+      const { data: setoresData } = await supabase
+        .from('setores')
+        .select('id, nome')
+        .order('nome');
+
+      setSetores(setoresData || []);
+
       // Fetch all member functions
       const { data: funcoesData } = await supabase
         .from('membros_funcoes')
         .select('id, profile_id, funcao');
+
+      const { data: membrosSetoresData } = await supabase
+        .from('membros_setores')
+        .select('profile_id, setor:setores(id, nome)');
 
       if (profilesData) {
         const membrosWithData: Membro[] = profilesData.map(profile => ({
@@ -139,6 +162,9 @@ export default function Membros() {
             id: f.id,
             funcao: f.funcao,
           })) || [],
+          setores: membrosSetoresData?.filter(item => item.profile_id === profile.id)
+            .map(item => item.setor)
+            .filter((setor): setor is Setor => !!setor) || [],
         }));
 
         setMembros(membrosWithData);
@@ -177,12 +203,92 @@ export default function Membros() {
     }
   };
 
+  const handleAddSetor = async () => {
+    if (!selectedMembro || !novoSetorId) return;
+
+    try {
+      const { error } = await supabase.from('membros_setores').insert({
+        profile_id: selectedMembro.id,
+        setor_id: novoSetorId,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Ministério adicionado!' });
+      setIsAddSetorOpen(false);
+      setNovoSetorId('');
+      setSelectedMembro(null);
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCreateSetor = async () => {
+    const nome = novoSetorNome.trim();
+    if (!nome) {
+      toast({
+        title: 'Informe o nome',
+        description: 'Digite o nome do ministério.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsCreatingSetor(true);
+    try {
+      const { error } = await supabase.from('setores').insert({ nome });
+      if (error) throw error;
+
+      toast({ title: 'Ministério criado!' });
+      setIsCreateSetorOpen(false);
+      setNovoSetorNome('');
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao criar ministério',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingSetor(false);
+    }
+  };
+
   const handleRemoveFuncao = async (funcaoId: string) => {
     try {
       const { error } = await supabase.from('membros_funcoes').delete().eq('id', funcaoId);
       if (error) throw error;
 
       toast({ title: 'Função removida' });
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRemoveSetor = async (profileId: string, setorId: string) => {
+    try {
+      const { error } = await supabase
+        .from('membros_setores')
+        .delete()
+        .eq('profile_id', profileId)
+        .eq('setor_id', setorId);
+
+      if (error) throw error;
+
+      toast({ title: 'Ministério removido' });
       clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
@@ -347,13 +453,9 @@ export default function Membros() {
               Membros
             </h1>
             <p className="text-muted-foreground mt-1">
-              Gerencie os membros e suas funções
+              Gerencie os membros, seus ministérios e funções
             </p>
           </div>
-          <Button variant="gradient" className="w-full sm:w-auto" onClick={() => setIsCreateUserOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Criar usuário
-          </Button>
         </div>
 
         {/* Search */}
@@ -461,6 +563,43 @@ export default function Membros() {
                         </div>
                         
                         {/* Functions */}
+                        <div className="mt-3">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ministérios</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {membro.setores.map((setor) => (
+                              <Badge
+                                key={setor.id}
+                                variant="secondary"
+                                className="pl-2 pr-1 py-1 gap-1 group max-w-full"
+                              >
+                                <Users className="w-3 h-3" />
+                                <span className="truncate">{setor.nome}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-4 h-4 ml-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-transparent"
+                                  onClick={() => handleRemoveSetor(membro.id, setor.id)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </Badge>
+                            ))}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                setSelectedMembro(membro);
+                                setNovoSetorId('');
+                                setIsAddSetorOpen(true);
+                              }}
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Ministério
+                            </Button>
+                          </div>
+                        </div>
+
                         <div className="flex flex-wrap gap-2 mt-3">
                           {membro.funcoes.map(funcao => (
                             <Badge
@@ -558,6 +697,68 @@ export default function Membros() {
               </div>
               <Button className="w-full" variant="gradient" onClick={handleAddFuncao}>
                 Adicionar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddSetorOpen} onOpenChange={setIsAddSetorOpen}>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-serif">
+                Adicionar Ministério para {selectedMembro?.nome}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Ministério</Label>
+                <Select value={novoSetorId} onValueChange={setNovoSetorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um ministério..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {setores
+                      .filter((setor) => !selectedMembro?.setores.some((item) => item.id === setor.id))
+                      .map((setor) => (
+                        <SelectItem key={setor.id} value={setor.id}>
+                          {setor.nome}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button className="w-full" variant="gradient" onClick={handleAddSetor}>
+                Adicionar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isCreateSetorOpen} onOpenChange={setIsCreateSetorOpen}>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-serif">Criar Ministério</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="novo-setor-nome">Nome do ministério</Label>
+                <Input
+                  id="novo-setor-nome"
+                  value={novoSetorNome}
+                  onChange={(event) => setNovoSetorNome(event.target.value)}
+                  placeholder="Ex: Farol, Acesso, Infantil..."
+                  disabled={isCreatingSetor}
+                />
+              </div>
+              <Button className="w-full" variant="gradient" onClick={handleCreateSetor} disabled={isCreatingSetor}>
+                {isCreatingSetor ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  'Criar ministério'
+                )}
               </Button>
             </div>
           </DialogContent>

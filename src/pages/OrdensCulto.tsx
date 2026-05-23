@@ -19,7 +19,7 @@ interface OrdemCultoWithEscala extends OrdemCulto {
 }
 
 export default function OrdensCulto() {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, canViewOrdensCulto, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -31,7 +31,10 @@ export default function OrdensCulto() {
     if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, authLoading, navigate]);
+    if (!authLoading && user && !isAdmin && !canViewOrdensCulto) {
+      navigate('/dashboard');
+    }
+  }, [user, isAdmin, canViewOrdensCulto, authLoading, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -40,7 +43,7 @@ export default function OrdensCulto() {
   }, [user]);
 
   const fetchOrdens = async () => {
-    const cacheKey = `ordens-culto:${isAdmin ? 'admin' : 'membro'}`;
+    const cacheKey = `ordens-culto:${isAdmin ? 'admin' : canViewOrdensCulto ? 'viewer' : 'membro'}`;
     const cached = readPageCache<OrdemCultoWithEscala[]>(cacheKey);
 
     if (cached) {

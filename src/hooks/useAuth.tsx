@@ -11,13 +11,19 @@ interface Profile {
   must_change_password: boolean;
 }
 
+interface UserPermissions {
+  canViewOrdemCulto: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   role: AppRole | null;
+  permissions: UserPermissions;
   isLoading: boolean;
   isAdmin: boolean;
+  canViewOrdensCulto: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -31,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [permissions, setPermissions] = useState<UserPermissions>({ canViewOrdemCulto: false });
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUserData = async (userId: string) => {
@@ -58,6 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setRole(null);
       }
+
+      const { data: permissionsData, error: permissionsError } = await supabase
+        .from('user_permissions')
+        .select('can_view_ordem_culto')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (permissionsError) {
+        setPermissions({ canViewOrdemCulto: false });
+      } else {
+        setPermissions({
+          canViewOrdemCulto: permissionsData?.can_view_ordem_culto ?? false,
+        });
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
@@ -84,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setProfile(null);
           setRole(null);
+          setPermissions({ canViewOrdemCulto: false });
         }
 
         if (event === 'SIGNED_OUT') {
@@ -135,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
+    setPermissions({ canViewOrdemCulto: false });
   };
 
   const value: AuthContextType = {
@@ -142,8 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     profile,
     role,
+    permissions,
     isLoading,
     isAdmin: role === 'admin',
+    canViewOrdensCulto: role === 'admin' || permissions.canViewOrdemCulto,
     signIn,
     signUp,
     signOut,

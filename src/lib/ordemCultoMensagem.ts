@@ -13,10 +13,12 @@ import type {
   EspecialConteudo,
 } from '@/types/ordemCulto';
 import { BLOCO_TIPO_LABELS, NOME_IGREJA } from '@/types/ordemCulto';
+import { formatEscalaMembroRole } from '@/lib/escalaFormat';
 
 interface EscalaMembro {
   id: string;
   funcao_na_escala: string;
+  setor?: { id?: string; nome: string } | null;
   profile: { id: string; nome: string };
 }
 
@@ -90,7 +92,7 @@ export function gerarOrdemCultoMensagem(
         if (escalaData?.membros.length) {
           lines.push('Equipe:');
           escalaData.membros.forEach(membro => {
-            lines.push(`- ${membro.profile.nome} (${membro.funcao_na_escala})`);
+            lines.push(`- ${membro.profile.nome} (${formatEscalaMembroRole(membro)})`);
           });
         }
 

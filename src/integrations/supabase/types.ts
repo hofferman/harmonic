@@ -22,6 +22,7 @@ export type Database = {
           id: string
           observacao: string | null
           profile_id: string
+          setor_id: string
         }
         Insert: {
           created_at?: string
@@ -30,6 +31,7 @@ export type Database = {
           id?: string
           observacao?: string | null
           profile_id: string
+          setor_id: string
         }
         Update: {
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           id?: string
           observacao?: string | null
           profile_id?: string
+          setor_id?: string
         }
         Relationships: [
           {
@@ -52,6 +55,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escala_membros_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
             referencedColumns: ["id"]
           },
         ]
@@ -111,6 +121,7 @@ export type Database = {
           created_by: string
           data: string
           id: string
+          setor_id: string
           titulo: string
         }
         Insert: {
@@ -118,6 +129,7 @@ export type Database = {
           created_by: string
           data: string
           id?: string
+          setor_id: string
           titulo: string
         }
         Update: {
@@ -125,9 +137,18 @@ export type Database = {
           created_by?: string
           data?: string
           id?: string
+          setor_id?: string
           titulo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "escalas_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       membros_funcoes: {
         Row: {
@@ -154,6 +175,42 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      membros_setores: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          setor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          setor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          setor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membros_setores_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membros_setores_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
             referencedColumns: ["id"]
           },
         ]
@@ -205,6 +262,24 @@ export type Database = {
           created_at?: string
           id?: string
           must_change_password?: boolean
+          nome?: string
+        }
+        Relationships: []
+      }
+      setores: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
           nome?: string
         }
         Relationships: []
@@ -303,6 +378,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          can_view_ordem_culto: boolean
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          can_view_ordem_culto?: boolean
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          can_view_ordem_culto?: boolean
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -313,6 +409,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      has_ordem_culto_access: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       is_member_of_escala: {

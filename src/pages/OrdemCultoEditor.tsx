@@ -55,6 +55,7 @@ import type {
 } from '@/types/ordemCulto';
 import { BLOCO_TIPO_LABELS, BLOCO_TIPOS_ORDEM } from '@/types/ordemCulto';
 import { gerarOrdemCultoMensagem } from '@/lib/ordemCultoMensagem';
+import { formatEscalaMembroRole } from '@/lib/escalaFormat';
 
 interface EscalaOption {
   id: string;
@@ -65,6 +66,7 @@ interface EscalaOption {
 interface EscalaMembro {
   id: string;
   funcao_na_escala: string;
+  setor?: { id?: string; nome: string } | null;
   profile: { id: string; nome: string };
 }
 
@@ -94,7 +96,7 @@ export default function OrdemCultoEditor() {
   const { id } = useParams<{ id: string }>();
   const isNew = !id || id === 'nova';
   const navigate = useNavigate();
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, canViewOrdensCulto, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
   // Ordem state
@@ -126,10 +128,13 @@ export default function OrdemCultoEditor() {
     if (!authLoading && !user) {
       navigate('/auth');
     }
-    if (!authLoading && user && !isAdmin) {
-      // Members can view published orders but not edit
+    if (!authLoading && user && isNew && !isAdmin) {
+      navigate('/ordens-culto');
     }
-  }, [user, isAdmin, authLoading, navigate]);
+    if (!authLoading && user && !isAdmin && !canViewOrdensCulto) {
+      navigate('/dashboard');
+    }
+  }, [user, isAdmin, canViewOrdensCulto, authLoading, navigate, isNew]);
 
   useEffect(() => {
     if (user && !isNew) {
@@ -224,6 +229,7 @@ export default function OrdemCultoEditor() {
         .select(`
           id,
           funcao_na_escala,
+          setor:setores(id, nome),
           profile:profiles(id, nome)
         `)
         .eq('escala_id', escId)
@@ -594,7 +600,7 @@ export default function OrdemCultoEditor() {
                     <div className="flex flex-wrap gap-2 mt-1">
                       {escalaMembros.map(m => (
                         <Badge key={m.id} variant="outline" className="text-xs">
-                          {m.profile.nome} ({m.funcao_na_escala})
+                          {m.profile.nome} ({formatEscalaMembroRole(m)})
                         </Badge>
                       ))}
                     </div>

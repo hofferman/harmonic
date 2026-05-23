@@ -23,8 +23,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatEscalaMembroRole } from '@/lib/escalaFormat';
 
 interface Profile {
+  id: string;
+  nome: string;
+}
+
+interface Setor {
   id: string;
   nome: string;
 }
@@ -35,6 +41,7 @@ interface EscalaMembro {
   funcao_na_escala: string;
   observacao: string | null;
   profile: Profile;
+  setor: Setor;
 }
 
 interface EscalaMusica {
@@ -58,6 +65,7 @@ interface Escala {
   titulo: string;
   created_at: string;
   created_by: string;
+  setor?: Setor | null;
 }
 
 interface MusicaOption {
@@ -81,6 +89,8 @@ const FUNCOES = [
   'Técnico de Som',
 ];
 
+const FAROL_FUNCOES = ['Ministro', 'Auxiliar'];
+
 export default function EscalaDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin, isLoading: authLoading } = useAuth();
@@ -91,11 +101,14 @@ export default function EscalaDetail() {
   const [membros, setMembros] = useState<EscalaMembro[]>([]);
   const [musicas, setMusicas] = useState<EscalaMusica[]>([]);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [setores, setSetores] = useState<Setor[]>([]);
+  const [membrosSetores, setMembrosSetores] = useState<Record<string, string[]>>({});
   const [allMusicas, setAllMusicas] = useState<MusicaOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Add member dialog
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [selectedSetor, setSelectedSetor] = useState('');
   const [selectedProfile, setSelectedProfile] = useState('');
   const [selectedFuncao, setSelectedFuncao] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -156,6 +169,8 @@ export default function EscalaDetail() {
       fetchEscalaData();
       if (isAdmin) {
         fetchAllProfiles();
+        fetchSetores();
+        fetchMembrosSetores();
         fetchAllMusicas();
       }
     }
@@ -167,12 +182,25 @@ export default function EscalaDetail() {
       // Fetch escala
       const { data: escalaData, error: escalaError } = await supabase
         .from('escalas')
-        .select('*')
+        .select(`
+          *,
+          setor:setores(id, nome)
+        `)
         .eq('id', id)
         .single();
 
-      if (escalaError) throw escalaError;
-      setEscala(escalaData);
+      if (escalaError) {
+        const fallbackEscala = await supabase
+          .from('escalas')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (fallbackEscala.error) throw fallbackEscala.error;
+        setEscala(fallbackEscala.data as Escala);
+      } else {
+        setEscala(escalaData as Escala);
+      }
 
       // Fetch members
       const { data: membrosData } = await supabase
@@ -182,13 +210,14 @@ export default function EscalaDetail() {
           profile_id,
           funcao_na_escala,
           observacao,
-          profile:profiles(id, nome)
+          profile:profiles(id, nome),
+          setor:setores(id, nome)
         `)
         .eq('escala_id', id)
         .order('funcao_na_escala');
 
       if (membrosData) {
-        setMembros(membrosData.filter((m): m is EscalaMembro => m.profile !== null));
+        setMembros(membrosData.filter((m): m is EscalaMembro => m.profile !== null && m.setor !== null));
       }
 
       // Fetch musicas
@@ -224,6 +253,25 @@ export default function EscalaDetail() {
     if (data) setAllProfiles(data);
   };
 
+  const fetchSetores = async () => {
+    const { data } = await supabase.from('setores').select('id, nome').order('nome');
+    if (data) setSetores(data);
+  };
+
+  const fetchMembrosSetores = async () => {
+    const { data } = await supabase
+      .from('membros_setores')
+      .select('profile_id, setor_id');
+
+    if (!data) return;
+
+    const next: Record<string, string[]> = {};
+    data.forEach((item) => {
+      next[item.profile_id] = [...(next[item.profile_id] || []), item.setor_id];
+    });
+    setMembrosSetores(next);
+  };
+
   const fetchAllMusicas = async () => {
     const { data: musicasData } = await supabase
       .from('musicas')
@@ -257,10 +305,10 @@ export default function EscalaDetail() {
   };
 
   const handleAddMember = async () => {
-    if (!selectedProfile || !selectedFuncao) {
+    if (!selectedSetor || !selectedProfile || !selectedFuncao.trim()) {
       toast({
         title: 'Erro',
-        description: 'Selecione o membro e a função.',
+        description: 'Selecione o voluntário e a função.',
         variant: 'destructive',
       });
       return;
@@ -269,15 +317,17 @@ export default function EscalaDetail() {
     try {
       const { error } = await supabase.from('escala_membros').insert({
         escala_id: id,
+        setor_id: selectedSetor,
         profile_id: selectedProfile,
-        funcao_na_escala: selectedFuncao,
+        funcao_na_escala: selectedFuncao.trim(),
         observacao: observacao || null,
       });
 
       if (error) throw error;
 
-      toast({ title: 'Membro adicionado!' });
+      toast({ title: 'Voluntário adicionado!' });
       setIsAddMemberOpen(false);
+      setSelectedSetor('');
       setSelectedProfile('');
       setSelectedFuncao('');
       setObservacao('');
@@ -285,7 +335,9 @@ export default function EscalaDetail() {
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message,
+        description: error.message?.includes('escala_membros_unique_profile_per_escala')
+          ? 'Esta pessoa já foi escalada em outro ministério neste evento.'
+          : error.message,
         variant: 'destructive',
       });
     }
@@ -298,7 +350,7 @@ export default function EscalaDetail() {
       const { error } = await supabase.from('escala_membros').delete().eq('id', membroId);
       if (error) throw error;
 
-      toast({ title: 'Membro removido' });
+      toast({ title: 'Voluntário removido' });
       fetchEscalaData();
     } catch (error: any) {
       toast({
@@ -490,7 +542,26 @@ export default function EscalaDetail() {
   };
 
   const isCurrentUserMember = membros.some(m => m.profile_id === user?.id);
-  const currentUserFuncao = membros.find(m => m.profile_id === user?.id)?.funcao_na_escala;
+  const currentUserFuncao = (() => {
+    const membro = membros.find(m => m.profile_id === user?.id);
+    return membro ? formatEscalaMembroRole(membro) : undefined;
+  })();
+  const escalaMinisterioNome = escala?.setor?.nome || escala?.titulo || '';
+  const escalaMinisterioKey = escalaMinisterioNome.trim().toLowerCase();
+  const isLouvorEscala = escalaMinisterioKey === 'louvor';
+  const isFarolEscala = escalaMinisterioKey === 'farol';
+  const escalaSetorId =
+    escala?.setor?.id ||
+    setores.find((setor) => setor.nome.trim().toLowerCase() === escalaMinisterioKey)?.id ||
+    '';
+  const ministroFarol = membros.find((membro) => membro.funcao_na_escala.toLowerCase() === 'ministro');
+  const auxiliaresFarol = membros.filter((membro) => membro.funcao_na_escala.toLowerCase() !== 'ministro');
+  const availableProfiles = allProfiles.filter((profile) => {
+    if (membros.some((membro) => membro.profile_id === profile.id)) return false;
+    if (!escalaSetorId) return true;
+    if (Object.keys(membrosSetores).length === 0) return true;
+    return (membrosSetores[profile.id] || []).includes(escalaSetorId);
+  });
 
   if (authLoading || isLoading) {
     return (
@@ -539,7 +610,7 @@ export default function EscalaDetail() {
                 </h1>
                 {getStatusBadge()}
               </div>
-              <p className="text-muted-foreground mt-1 flex items-start gap-2 leading-snug">
+              <p className="mt-1 flex items-start gap-2 text-sm leading-snug text-muted-foreground sm:text-base">
                 <Calendar className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{format(new Date(escala.data + 'T00:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}</span>
               </p>
@@ -554,18 +625,18 @@ export default function EscalaDetail() {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] items-start">
-          {/* Songs */}
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)] items-start">
+          {/* Left content by ministry */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <CardHeader className="flex flex-row items-start justify-between gap-3 px-4 sm:px-6">
-              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-xl leading-tight">
-                <Music className="w-5 h-5 text-primary" />
-                Repertório ({musicas.length})
+            <CardHeader className="flex flex-col gap-3 px-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-lg leading-tight sm:text-xl">
+                {isFarolEscala ? <Users className="w-5 h-5 text-primary" /> : <Music className="w-5 h-5 text-primary" />}
+                {isFarolEscala ? 'Farol' : `Repertório (${musicas.length})`}
               </CardTitle>
-              {isAdmin && (
+              {isAdmin && !isFarolEscala && (
                 <Dialog open={isAddMusicOpen} onOpenChange={setIsAddMusicOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="shrink-0">
+                    <Button size="sm" variant="outline" className="w-full shrink-0 sm:w-auto">
                       <Plus className="w-4 h-4 mr-1" />
                       Adicionar
                     </Button>
@@ -628,7 +699,41 @@ export default function EscalaDetail() {
               )}
             </CardHeader>
             <CardContent>
-              {musicas.length === 0 ? (
+              {isFarolEscala ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border bg-secondary/20 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Ministro</p>
+                    {ministroFarol ? (
+                      <div className="mt-3">
+                        <p className="font-semibold">{ministroFarol.profile.nome}</p>
+                        {ministroFarol.observacao && (
+                          <p className="mt-1 text-sm text-muted-foreground">{ministroFarol.observacao}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">Nenhum ministro definido nesta escala.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border bg-secondary/20 p-4">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Auxiliares</p>
+                    {auxiliaresFarol.length === 0 ? (
+                      <p className="mt-3 text-sm text-muted-foreground">Nenhum auxiliar escalado.</p>
+                    ) : (
+                      <div className="mt-3 space-y-3">
+                        {auxiliaresFarol.map((membro) => (
+                          <div key={membro.id} className="rounded-lg bg-background px-3 py-3">
+                            <p className="font-medium">{membro.profile.nome}</p>
+                            {membro.observacao && (
+                              <p className="mt-1 text-sm text-muted-foreground">{membro.observacao}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : musicas.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Music className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p>Nenhuma música no repertório</p>
@@ -766,32 +871,47 @@ export default function EscalaDetail() {
 
           {/* Members */}
           <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <CardHeader className="flex flex-row items-start justify-between gap-3 px-4 sm:px-6">
-              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-xl leading-tight">
+            <CardHeader className="flex flex-col gap-3 px-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+              <CardTitle className="font-serif flex min-w-0 items-center gap-2 text-lg leading-tight sm:text-xl">
                 <Users className="w-5 h-5 text-primary" />
                 Equipe ({membros.length})
               </CardTitle>
               {isAdmin && (
                 <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="shrink-0">
+                    <Button size="sm" variant="outline" className="w-full shrink-0 sm:w-auto">
                       <Plus className="w-4 h-4 mr-1" />
                       Adicionar
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
+                  <DialogContent
+                    className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg"
+                    onOpenAutoFocus={() => {
+                      setSelectedSetor(escalaSetorId);
+                      setSelectedProfile('');
+                      if (isLouvorEscala || isFarolEscala) {
+                        setSelectedFuncao('');
+                      } else {
+                        setSelectedFuncao(escalaMinisterioNome);
+                      }
+                    }}
+                  >
                     <DialogHeader>
-                      <DialogTitle className="font-serif">Adicionar Membro</DialogTitle>
+                      <DialogTitle className="font-serif">Adicionar Voluntário</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
                       <div className="space-y-2">
-                        <Label>Membro</Label>
+                        <Label>Ministério</Label>
+                        <Input value={escalaMinisterioNome} disabled />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Voluntário</Label>
                         <Select value={selectedProfile} onValueChange={setSelectedProfile}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {allProfiles.map(p => (
+                            {availableProfiles.map(p => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.nome}
                               </SelectItem>
@@ -801,18 +921,40 @@ export default function EscalaDetail() {
                       </div>
                       <div className="space-y-2">
                         <Label>Função</Label>
-                        <Select value={selectedFuncao} onValueChange={setSelectedFuncao}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FUNCOES.map(f => (
-                              <SelectItem key={f} value={f}>
-                                {f}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {isLouvorEscala ? (
+                          <Select value={selectedFuncao} onValueChange={setSelectedFuncao}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FUNCOES.map(f => (
+                                <SelectItem key={f} value={f}>
+                                  {f}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : isFarolEscala ? (
+                          <Select value={selectedFuncao} onValueChange={setSelectedFuncao}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FAROL_FUNCOES.map((funcao) => (
+                                <SelectItem key={funcao} value={funcao}>
+                                  {funcao}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={selectedFuncao}
+                            onChange={(e) => setSelectedFuncao(e.target.value)}
+                            placeholder={escalaMinisterioNome ? `Ex: ${escalaMinisterioNome}` : 'Função'}
+                            disabled={!escalaMinisterioNome}
+                          />
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Observação (opcional)</Label>
@@ -834,33 +976,33 @@ export default function EscalaDetail() {
               {membros.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhum membro escalado</p>
+                  <p>Nenhum voluntário escalado</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {membros.map((membro) => (
                     <div
                       key={membro.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg transition-colors ${
+                      className={`rounded-lg p-3 transition-colors ${
                         membro.profile_id === user?.id
                           ? 'bg-primary/10 border border-primary/20'
                           : 'bg-secondary/30'
                       }`}
                     >
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
+                      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium ${
                           membro.profile_id === user?.id
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-secondary text-secondary-foreground'
                         }`}>
                           {membro.profile.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium leading-snug break-words">
                             {membro.profile.nome}
                             {membro.profile_id === user?.id && ' (Você)'}
                           </p>
-                          <p className="text-sm text-muted-foreground">{membro.funcao_na_escala}</p>
+                          <p className="text-sm text-muted-foreground">{formatEscalaMembroRole(membro)}</p>
                           {membro.observacao && (
                             <p className="text-xs text-muted-foreground italic mt-1">
                               {membro.observacao}
@@ -869,14 +1011,16 @@ export default function EscalaDetail() {
                         </div>
                       </div>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleRemoveMember(membro.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="mt-3 flex justify-end sm:mt-0 sm:ml-auto">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleRemoveMember(membro.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ))}
