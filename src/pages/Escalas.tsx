@@ -41,6 +41,9 @@ interface Escala {
   minhaFuncao?: string;
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default function Escalas() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -199,31 +202,43 @@ export default function Escalas() {
     setIsCreating(true);
     try {
       let createdEscalaId: string | null = null;
+      const baseInsert = {
+        data: selectedDateKey,
+        titulo: selectedSetor?.nome || 'Louvor',
+        created_by: user?.id,
+      };
+      const canPersistSetorId = UUID_REGEX.test(novoSetorId);
 
-      let { data: createdEscala, error } = await supabase
-        .from('escalas')
-        .insert({
-          data: selectedDateKey,
-          titulo: selectedSetor?.nome || 'Louvor',
-          created_by: user?.id,
-          setor_id: novoSetorId,
-        })
-        .select('id')
-        .single();
+      let createdEscala = null;
+      let error = null;
 
-      const missingSetorColumn =
-        error?.message?.includes("column 'setor_id'") ||
-        error?.message?.includes('setor_id') ||
-        error?.message?.includes('schema cache');
-
-      if (error && missingSetorColumn) {
-        const fallbackInsert = await supabase
+      if (canPersistSetorId) {
+        const insertWithSetor = await supabase
           .from('escalas')
           .insert({
-            data: selectedDateKey,
-            titulo: selectedSetor?.nome || 'Louvor',
-            created_by: user?.id,
+            ...baseInsert,
+            setor_id: novoSetorId,
           })
+          .select('id')
+          .single();
+
+        createdEscala = insertWithSetor.data;
+        error = insertWithSetor.error;
+      }
+
+      const shouldRetryWithoutSetor =
+        !canPersistSetorId ||
+        error?.message?.includes("column 'setor_id'") ||
+        error?.message?.includes('setor_id') ||
+        error?.message?.includes('schema cache') ||
+        error?.message?.includes('invalid input syntax for type uuid') ||
+        error?.message?.includes('violates foreign key constraint') ||
+        error?.message?.includes("Could not find the 'setor'");
+
+      if (!createdEscalaId && (!canPersistSetorId || (error && shouldRetryWithoutSetor))) {
+        const fallbackInsert = await supabase
+          .from('escalas')
+          .insert(baseInsert)
           .select('id')
           .single();
 
