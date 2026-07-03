@@ -5,16 +5,28 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar as DateCalendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, isPast, isToday, startOfDay } from 'date-fns';
+import { format, isPast, isToday, isTomorrow, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Plus, ChevronRight, Users, Music, Trash2, ChevronDown } from 'lucide-react';
+import {
+  CalendarDays,
+  Plus,
+  ChevronRight,
+  Users,
+  Music,
+  Trash2,
+  Search,
+  CalendarPlus,
+  Clock,
+  Filter,
+  ArrowUpRight,
+} from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 import { formatEscalaMembroRole } from '@/lib/escalaFormat';
 
@@ -44,6 +56,16 @@ interface Escala {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type ViewMode = 'proximas' | 'todas' | 'passadas';
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error && 'message' in error) {
+    return String(error.message);
+  }
+  return 'Não foi possível concluir a operação.';
+};
+
 export default function Escalas() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -53,14 +75,18 @@ export default function Escalas() {
   const [setores, setSetores] = useState<Setor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+  const [novaEscalaData, setNovaEscalaData] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [novoSetorId, setNovoSetorId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('proximas');
+  const [ministerioFilter, setMinisterioFilter] = useState('todos');
+  const [monthFilter, setMonthFilter] = useState('todos');
 
   const getMinisterioNome = (escala: Pick<Escala, 'setor'>) => escala.setor?.nome || 'Louvor';
-  const formatLongDate = (date: Date) =>
-    format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+  const getEscalaDate = (data: string) => startOfDay(new Date(`${data}T00:00:00`));
+  const today = startOfDay(new Date());
+  const todayKey = format(today, 'yyyy-MM-dd');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -180,13 +206,87 @@ export default function Escalas() {
     }
   };
 
-  const selectedDateKey = format(selectedDate, 'yyyy-MM-dd');
-  const selectedDateShort = format(selectedDate, "d 'de' MMM", { locale: ptBR });
-
   const sortedUpcomingEscalas = useMemo(
-    () => escalas.filter((escala) => startOfDay(new Date(`${escala.data}T00:00:00`)) >= startOfDay(new Date())),
-    [escalas],
+    () => escalas.filter((escala) => getEscalaDate(escala.data) >= today),
+    [escalas, today],
   );
+
+  const pastEscalas = useMemo(
+    () => escalas.filter((escala) => getEscalaDate(escala.data) < today),
+    [escalas, today],
+  );
+
+  const monthOptions = useMemo(() => {
+    const months = new Map<string, string>();
+    escalas.forEach((escala) => {
+      const date = getEscalaDate(escala.data);
+      const key = format(date, 'yyyy-MM');
+      months.set(key, format(date, 'MMMM yyyy', { locale: ptBR }));
+    });
+    return Array.from(months, ([value, label]) => ({ value, label }));
+  }, [escalas]);
+
+  const filteredEscalas = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return escalas
+      .filter((escala) => {
+        const escalaDate = getEscalaDate(escala.data);
+        if (viewMode === 'proximas' && escalaDate < today) return false;
+        if (viewMode === 'passadas' && escalaDate >= today) return false;
+        if (ministerioFilter !== 'todos' && getMinisterioNome(escala) !== ministerioFilter) return false;
+        if (monthFilter !== 'todos' && format(escalaDate, 'yyyy-MM') !== monthFilter) return false;
+
+        if (!normalizedSearch) return true;
+
+        const searchable = [
+          escala.titulo,
+          getMinisterioNome(escala),
+          escala.minhaFuncao,
+          format(escalaDate, "EEEE d MMMM yyyy", { locale: ptBR }),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        return searchable.includes(normalizedSearch);
+      })
+      .sort((a, b) => getEscalaDate(a.data).getTime() - getEscalaDate(b.data).getTime());
+  }, [escalas, searchTerm, viewMode, ministerioFilter, monthFilter, today]);
+
+  const groupedEscalas = useMemo(() => {
+    return filteredEscalas.reduce<Array<{ key: string; label: string; escalas: Escala[] }>>((groups, escala) => {
+      const date = getEscalaDate(escala.data);
+      const key = format(date, 'yyyy-MM');
+      const currentGroup = groups.find((group) => group.key === key);
+
+      if (currentGroup) {
+        currentGroup.escalas.push(escala);
+        return groups;
+      }
+
+      groups.push({
+        key,
+        label: format(date, 'MMMM yyyy', { locale: ptBR }),
+        escalas: [escala],
+      });
+
+      return groups;
+    }, []);
+  }, [filteredEscalas]);
+
+  const ministeriosDisponiveis = useMemo(() => {
+    return Array.from(new Set(escalas.map((escala) => getMinisterioNome(escala)))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [escalas]);
+
+  const todayEscalasCount = useMemo(
+    () => escalas.filter((escala) => escala.data === todayKey).length,
+    [escalas, todayKey],
+  );
+
+  const nextEscala = sortedUpcomingEscalas[0];
   const selectedSetor = setores.find((setor) => setor.id === novoSetorId) || null;
 
   const handleCreateEscala = async () => {
@@ -203,7 +303,7 @@ export default function Escalas() {
     try {
       let createdEscalaId: string | null = null;
       const baseInsert = {
-        data: selectedDateKey,
+        data: novaEscalaData,
         titulo: selectedSetor?.nome || 'Louvor',
         created_by: user?.id,
       };
@@ -263,10 +363,10 @@ export default function Escalas() {
       if (createdEscalaId) {
         navigate(`/escalas/${createdEscalaId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro ao criar escala',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -293,12 +393,12 @@ export default function Escalas() {
         title: 'Escala excluída',
         description: 'A escala foi removida com sucesso.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setEscalas(previousEscalas);
       writePageCache(`escalas:${user?.id ?? 'anon'}`, previousEscalas);
       toast({
         title: 'Erro ao excluir',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -315,6 +415,20 @@ export default function Escalas() {
     return <Badge variant="outline">Futura</Badge>;
   };
 
+  const formatRelativeDate = (data: string) => {
+    const date = getEscalaDate(data);
+    if (isToday(date)) return 'Hoje';
+    if (isTomorrow(date)) return 'Amanhã';
+    return format(date, "EEEE, d 'de' MMMM", { locale: ptBR });
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setMinisterioFilter('todos');
+    setMonthFilter('todos');
+    setViewMode('proximas');
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -326,51 +440,75 @@ export default function Escalas() {
   return (
     <AppLayout>
       <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between animate-fade-in">
           <div className="min-w-0">
-            <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="bg-background">
+                Agenda
+              </Badge>
+              {todayEscalasCount > 0 && (
+                <Badge className="bg-accent text-accent-foreground">
+                  {todayEscalasCount} hoje
+                </Badge>
+              )}
+            </div>
+            <h1 className="mt-3 text-2xl lg:text-3xl font-serif font-bold text-foreground">
               Escalas
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              {isAdmin ? 'Escolha um dia no calendário para criar escalas por ministério' : 'Acompanhe as próximas escalas'}
+              {isAdmin
+                ? 'Crie, encontre e organize as escalas sem precisar caçar datas no calendário.'
+                : 'Veja suas próximas escalas em ordem de agenda.'}
             </p>
           </div>
 
           {isAdmin && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="gradient" className="w-full sm:min-w-[220px] sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova escala do dia
+                <Button variant="gradient" className="w-full sm:w-auto sm:min-w-[190px]">
+                  <CalendarPlus className="w-4 h-4 mr-2" />
+                  Nova escala
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle className="font-serif">Criar escala em {format(selectedDate, 'dd/MM/yyyy')}</DialogTitle>
+                  <DialogTitle className="font-serif">Criar nova escala</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>Ministério</Label>
-                    <Select value={novoSetorId} onValueChange={setNovoSetorId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um ministério..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {setores.map((setor) => (
-                          <SelectItem key={setor.id} value={setor.id}>
-                            {setor.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="nova-escala-data">Data</Label>
+                      <Input
+                        id="nova-escala-data"
+                        type="date"
+                        value={novaEscalaData}
+                        min={todayKey}
+                        onChange={(event) => setNovaEscalaData(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ministério</Label>
+                      <Select value={novoSetorId} onValueChange={setNovoSetorId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {setores.map((setor) => (
+                            <SelectItem key={setor.id} value={setor.id}>
+                              {setor.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <Button
                     className="w-full"
                     variant="gradient"
                     onClick={handleCreateEscala}
-                    disabled={isCreating}
+                    disabled={isCreating || !novaEscalaData}
                   >
-                    {isCreating ? 'Criando...' : 'Criar escala'}
+                    {isCreating ? 'Criando...' : 'Criar e abrir escala'}
                   </Button>
                 </div>
               </DialogContent>
@@ -378,164 +516,253 @@ export default function Escalas() {
           )}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-          <div className="space-y-4 xl:sticky xl:top-20">
-            <Card className="border-0 shadow-lg animate-slide-up overflow-hidden">
-              <div className="px-4 py-4 sm:px-5 sm:py-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data selecionada</p>
-                    <h2 className="mt-2 text-xl font-serif font-semibold capitalize sm:text-2xl">{selectedDateShort}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground capitalize leading-relaxed">{formatLongDate(selectedDate)}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full shrink-0 justify-between sm:w-auto"
-                    onClick={() => setIsCalendarExpanded((current) => !current)}
-                  >
-                    Calendário
-                    <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isCalendarExpanded ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
-              </div>
-              <CardContent className="px-3 pb-3 pt-0 sm:px-4 sm:pb-4">
-                <div className={isCalendarExpanded ? 'block' : 'hidden'}>
-                  <DateCalendar
-                    mode="single"
-                    locale={ptBR}
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(startOfDay(date))}
-                    modifiers={{
-                      selectedFocus: [selectedDate],
-                      hasEscala: escalas.map((escala) => new Date(`${escala.data}T00:00:00`)),
-                    }}
-                    modifiersClassNames={{
-                      hasEscala: 'relative after:absolute after:bottom-1 after:left-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:rounded-full after:bg-primary',
-                    }}
-                    className="mx-auto w-full rounded-xl border bg-background p-2 sm:w-fit"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-slide-up">
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Próximas</p>
+              <CalendarDays className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold">{isLoading ? '-' : sortedUpcomingEscalas.length}</p>
           </div>
-
-          <div className="space-y-4">
-            <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              <CardHeader className="border-b bg-secondary/20 px-4 py-4 sm:px-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <CardTitle className="font-serif flex items-center gap-2 text-lg sm:text-xl">
-                      <CalendarDays className="h-5 w-5 text-primary" />
-                      Próximas escalas
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Acompanhe as agendas já criadas.
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="h-8 px-3">
-                      {sortedUpcomingEscalas.length} agenda{sortedUpcomingEscalas.length !== 1 && 's'}
-                    </Badge>
-                    {isAdmin && (
-                      <Button variant="gradient" className="w-full sm:w-auto lg:hidden" onClick={() => setIsDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nova escala
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 sm:p-5">
-              {isLoading ? (
-                <>
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
-                  ))}
-                </>
-              ) : sortedUpcomingEscalas.length === 0 ? (
-                <div className="rounded-xl border border-dashed bg-secondary/20 py-14 px-5 text-center">
-                  <CalendarDays className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
-                  <h3 className="text-lg font-semibold mb-2">Nenhuma próxima escala</h3>
-                  <p className="text-muted-foreground">
-                    {isAdmin
-                      ? 'Crie uma nova escala para um ministério.'
-                      : 'Você não possui próximas escalas.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedUpcomingEscalas.map((escala) => (
-                  <Card
-                    key={escala.id}
-                    className="border shadow-sm hover:shadow-md hover:border-primary/30 cursor-pointer transition-all"
-                    onClick={() => navigate(`/escalas/${escala.id}`)}
-                  >
-                    <CardContent className="p-4 sm:p-5">
-                      <div className="flex items-start gap-3 sm:gap-4">
-                        <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <CalendarDays className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-base sm:text-lg leading-snug break-words">{escala.titulo}</h3>
-                            {getStatusBadge(escala.data)}
-                            <Badge variant="secondary">{getMinisterioNome(escala)}</Badge>
-                            {escala.minhaFuncao && (
-                              <Badge className="bg-primary/10 text-primary border-0">
-                                {escala.minhaFuncao}
-                              </Badge>
-                            )}
-                          </div>
-
-                          <p className="mt-2 text-sm text-muted-foreground capitalize">
-                            {format(new Date(`${escala.data}T00:00:00`), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                          </p>
-
-                          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-4 h-4" />
-                              {escala.membros_count} membro{escala.membros_count !== 1 && 's'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Music className="w-4 h-4" />
-                              {escala.musicas_count} música{escala.musicas_count !== 1 && 's'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2 shrink-0 self-start sm:self-center">
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => handleDeleteEscala(escala.id, e)}
-                            >
-                              <Trash2 className="w-4 h-4 sm:mr-1" />
-                              <span className="hidden sm:inline">Excluir</span>
-                            </Button>
-                          )}
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  ))}
-                </div>
-              )}
-
-              {!isLoading && sortedUpcomingEscalas.length > 0 && (
-                <div className="rounded-xl bg-secondary/20 px-4 py-3 text-sm text-muted-foreground">
-                  {sortedUpcomingEscalas.length} escala{sortedUpcomingEscalas.length !== 1 && 's'} encontrada{sortedUpcomingEscalas.length !== 1 && 's'}.
-                </div>
-              )}
-              </CardContent>
-            </Card>
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Hoje</p>
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold">{isLoading ? '-' : todayEscalasCount}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Ministérios</p>
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold">{isLoading ? '-' : ministeriosDisponiveis.length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Histórico</p>
+              <ArrowUpRight className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-bold">{isLoading ? '-' : pastEscalas.length}</p>
           </div>
         </div>
 
+        {nextEscala && (
+          <button
+            type="button"
+            className="w-full rounded-lg border bg-primary/10 p-4 text-left shadow-sm transition hover:border-primary/40 hover:bg-primary/15 animate-slide-up"
+            onClick={() => navigate(`/escalas/${nextEscala.id}`)}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-primary">Próxima escala</p>
+                <h2 className="mt-1 text-lg font-semibold leading-snug break-words">{nextEscala.titulo}</h2>
+                <p className="mt-1 text-sm text-muted-foreground capitalize">
+                  {formatRelativeDate(nextEscala.data)} · {getMinisterioNome(nextEscala)}
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+            </div>
+          </button>
+        )}
+
+        <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <CardHeader className="border-b bg-secondary/20 px-4 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0">
+                <CardTitle className="font-serif flex items-center gap-2 text-lg sm:text-xl">
+                  <Filter className="h-5 w-5 text-primary" />
+                  Agenda de escalas
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {filteredEscalas.length} escala{filteredEscalas.length !== 1 && 's'} exibida{filteredEscalas.length !== 1 && 's'}.
+                </CardDescription>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_160px_160px] lg:min-w-[640px]">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Buscar escala, ministério ou data"
+                    className="pl-9"
+                  />
+                </div>
+                <Select value={ministerioFilter} onValueChange={setMinisterioFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ministério" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos ministérios</SelectItem>
+                    {ministeriosDisponiveis.map((ministerio) => (
+                      <SelectItem key={ministerio} value={ministerio}>
+                        {ministerio}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos meses</SelectItem>
+                    {monthOptions.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        <span className="capitalize">{month.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="grid grid-cols-3 rounded-lg border bg-background p-1">
+                {[
+                  { value: 'proximas', label: 'Próximas' },
+                  { value: 'todas', label: 'Todas' },
+                  { value: 'passadas', label: 'Passadas' },
+                ].map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={viewMode === option.value ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-9 px-2 text-xs sm:px-3 sm:text-sm"
+                    onClick={() => setViewMode(option.value as ViewMode)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+
+              {(searchTerm || ministerioFilter !== 'todos' || monthFilter !== 'todos' || viewMode !== 'proximas') && (
+                <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="space-y-3 p-4 sm:p-5">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-28 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : filteredEscalas.length === 0 ? (
+              <div className="px-5 py-16 text-center">
+                <CalendarDays className="w-12 h-12 mx-auto mb-3 text-muted-foreground/40" />
+                <h3 className="text-lg font-semibold mb-2">Nenhuma escala encontrada</h3>
+                <p className="mx-auto max-w-md text-muted-foreground">
+                  {isAdmin
+                    ? 'Ajuste os filtros ou crie uma nova escala para o ministério desejado.'
+                    : 'Não encontramos escalas com esses filtros.'}
+                </p>
+                {isAdmin && (
+                  <Button variant="gradient" className="mt-5" onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova escala
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y">
+                {groupedEscalas.map((group) => (
+                  <section key={group.key} className="p-4 sm:p-5">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground capitalize">
+                        {group.label}
+                      </h2>
+                      <Badge variant="outline">
+                        {group.escalas.length}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      {group.escalas.map((escala) => (
+                        <div
+                          key={escala.id}
+                          role="button"
+                          tabIndex={0}
+                          className="group rounded-lg border bg-background p-3 transition hover:border-primary/40 hover:bg-secondary/20 sm:p-4"
+                          onClick={() => navigate(`/escalas/${escala.id}`)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              navigate(`/escalas/${escala.id}`);
+                            }
+                          }}
+                        >
+                          <div className="grid gap-3 sm:grid-cols-[76px_minmax(0,1fr)_auto] sm:items-center">
+                            <div className="flex items-center gap-3 sm:block sm:text-center">
+                              <div className="w-16 rounded-lg border bg-card px-3 py-2 shadow-sm">
+                                <p className="text-xs uppercase text-muted-foreground">
+                                  {format(getEscalaDate(escala.data), 'MMM', { locale: ptBR })}
+                                </p>
+                                <p className="text-2xl font-bold leading-none">
+                                  {format(getEscalaDate(escala.data), 'd')}
+                                </p>
+                              </div>
+                              <p className="text-sm text-muted-foreground capitalize sm:mt-2">
+                                {format(getEscalaDate(escala.data), 'EEE', { locale: ptBR })}
+                              </p>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-base font-semibold leading-snug break-words sm:text-lg">
+                                  {escala.titulo}
+                                </h3>
+                                {getStatusBadge(escala.data)}
+                                <Badge variant="secondary">{getMinisterioNome(escala)}</Badge>
+                                {escala.minhaFuncao && (
+                                  <Badge className="bg-primary/10 text-primary border-0">
+                                    {escala.minhaFuncao}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="mt-1 text-sm text-muted-foreground capitalize">
+                                {formatRelativeDate(escala.data)}
+                              </p>
+                              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  {escala.membros_count} membro{escala.membros_count !== 1 && 's'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Music className="w-4 h-4" />
+                                  {escala.musicas_count} música{escala.musicas_count !== 1 && 's'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 sm:justify-end">
+                              {isAdmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-9 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => handleDeleteEscala(escala.id, e)}
+                                >
+                                  <Trash2 className="w-4 h-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Excluir</span>
+                                </Button>
+                              )}
+                              <ChevronRight className="w-5 h-5 text-muted-foreground transition group-hover:text-primary" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );
