@@ -10,12 +10,29 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
-import { Settings, UserPlus, Users, Loader2, Plus, KeyRound, ListOrdered, ChevronRight, ChevronDown, Shield } from 'lucide-react';
+import {
+  Settings,
+  UserPlus,
+  Users,
+  Loader2,
+  Plus,
+  KeyRound,
+  ListOrdered,
+  ChevronRight,
+  Shield,
+  Search,
+  Building2,
+  UserCog,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 interface Setor {
   id: string;
@@ -57,7 +74,6 @@ export default function Configuracoes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
   const [selectedUsuarioId, setSelectedUsuarioId] = useState<string | null>(null);
-  const [isUsuariosExpanded, setIsUsuariosExpanded] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -367,6 +383,22 @@ export default function Configuracoes() {
     [usuarios, selectedUsuarioId],
   );
 
+  const adminCount = usuarios.filter((usuario) => usuario.role === 'admin').length;
+  const ordemCultoAccessCount = usuarios.filter((usuario) => usuario.canViewOrdemCulto || usuario.role === 'admin').length;
+  const usuariosSemMinisterioCount = usuarios.filter((usuario) => usuario.setores.length === 0).length;
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+
+  const availableSetoresForSelectedUsuario = selectedUsuario
+    ? setores.filter((setor) => !selectedUsuario.setores.some((currentSetor) => currentSetor.id === setor.id))
+    : [];
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -377,80 +409,223 @@ export default function Configuracoes() {
 
   return (
     <AppLayout>
-      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-6xl mx-auto">
-        <div className="animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Settings className="h-5 w-5" />
+      <div className="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:p-4 lg:p-8">
+        <div className="animate-fade-in overflow-hidden rounded-2xl border bg-card shadow-lg">
+          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Settings className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-primary">Administração</p>
+                <h1 className="mt-1 text-2xl font-bold text-foreground lg:text-3xl">
+                  Configurações do Harmonic
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">
+                  Gerencie acessos, permissões e ministérios em uma área única, com os controles principais sempre à vista.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
-                Configurações
-              </h1>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                Central administrativa para usuários, ministérios e permissões.
-              </p>
+
+            <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+              <div className="rounded-xl border bg-background px-3 py-3">
+                <p className="text-xs text-muted-foreground">Usuários</p>
+                <p className="mt-1 text-2xl font-semibold">{usuarios.length}</p>
+              </div>
+              <div className="rounded-xl border bg-background px-3 py-3">
+                <p className="text-xs text-muted-foreground">Admins</p>
+                <p className="mt-1 text-2xl font-semibold">{adminCount}</p>
+              </div>
+              <div className="rounded-xl border bg-background px-3 py-3">
+                <p className="text-xs text-muted-foreground">Ministérios</p>
+                <p className="mt-1 text-2xl font-semibold">{setores.length}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-6">
-            <Card className="border-0 shadow-lg animate-slide-up">
-              <CardHeader className="border-b bg-secondary/20">
-                <CardTitle className="font-serif flex items-center gap-2 text-xl">
-                  <KeyRound className="h-5 w-5 text-primary" />
-                  Permissões dos usuários
-                </CardTitle>
-                <CardDescription>
-                  Defina quem é administrador e quem pode acessar a área de OC.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 sm:p-6">
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="font-normal">
-                      {usuarios.filter((usuario) => usuario.role === 'admin').length} admins
-                    </Badge>
-                    <Badge variant="outline" className="font-normal">
-                      {usuarios.filter((usuario) => usuario.canViewOrdemCulto || usuario.role === 'admin').length} com acesso
+        <Tabs defaultValue="visao" className="animate-slide-up space-y-5">
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="h-auto w-max min-w-full justify-start rounded-xl p-1 sm:w-auto sm:min-w-0">
+              <TabsTrigger value="visao" className="gap-2 rounded-lg px-4 py-2">
+                <Settings className="h-4 w-4" />
+                Visão geral
+              </TabsTrigger>
+              <TabsTrigger value="usuarios" className="gap-2 rounded-lg px-4 py-2">
+                <UserCog className="h-4 w-4" />
+                Usuários
+              </TabsTrigger>
+              <TabsTrigger value="ministerios" className="gap-2 rounded-lg px-4 py-2">
+                <Building2 className="h-4 w-4" />
+                Ministérios
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="visao" className="mt-0 space-y-5">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <Card className="shadow-md">
+                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
+                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Usuários cadastrados</p>
+                    <p className="mt-2 text-3xl font-semibold">{usuarios.length}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-md">
+                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
+                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Administradores</p>
+                    <p className="mt-2 text-3xl font-semibold">{adminCount}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-md">
+                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
+                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                    <ListOrdered className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Acesso à OC</p>
+                    <p className="mt-2 text-3xl font-semibold">{ordemCultoAccessCount}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-md">
+                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
+                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Sem ministério</p>
+                    <p className="mt-2 text-3xl font-semibold">{usuariosSemMinisterioCount}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    Criar acesso
+                  </CardTitle>
+                  <CardDescription>
+                    Cadastre uma pessoa e entregue a senha temporária para o primeiro login.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="nome-usuario">Nome completo</Label>
+                      <Input
+                        id="nome-usuario"
+                        placeholder="Ex: Ana Souza"
+                        value={newUserNome}
+                        onChange={(e) => setNewUserNome(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email-usuario">Email</Label>
+                      <Input
+                        id="email-usuario"
+                        type="email"
+                        placeholder="ana@email.com"
+                        value={newUserEmail}
+                        onChange={(e) => setNewUserEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 rounded-xl border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Senha inicial: <span className="font-medium text-foreground">{SENHA_PADRAO}</span>
+                    </span>
+                    <Badge variant="outline" className="w-fit bg-background">
+                      Troca obrigatória no primeiro login
                     </Badge>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between sm:w-auto"
-                    onClick={() => setIsUsuariosExpanded((current) => !current)}
-                  >
-                    {isUsuariosExpanded ? 'Ocultar usuários' : 'Mostrar usuários'}
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isUsuariosExpanded ? 'rotate-180' : ''}`} />
-                  </Button>
-                </div>
 
-                {isUsuariosExpanded && (
+                  <Button className="w-full sm:w-auto" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
+                    {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                    Criar usuário
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <KeyRound className="h-5 w-5 text-primary" />
+                    Regras de acesso
+                  </CardTitle>
+                  <CardDescription>
+                    Como as permissões desta tela afetam o menu do app.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <div className="rounded-xl border bg-background p-4">
+                    <p className="font-medium text-foreground">Administrador</p>
+                    <p className="mt-1">Pode gerenciar usuários, membros, músicas, escalas e configurações.</p>
+                  </div>
+                  <div className="rounded-xl border bg-background p-4">
+                    <p className="font-medium text-foreground">Acesso à OC</p>
+                    <p className="mt-1">Libera a área de Ordem de Culto sem transformar o membro em administrador.</p>
+                  </div>
+                  <div className="rounded-xl border bg-background p-4">
+                    <p className="font-medium text-foreground">Ministérios</p>
+                    <p className="mt-1">Define em quais escalas o usuário aparece como opção.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="usuarios" className="mt-0">
+            <Card className="shadow-md">
+              <CardHeader className="gap-4 border-b bg-secondary/20 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <UserCog className="h-5 w-5 text-primary" />
+                    Usuários e permissões
+                  </CardTitle>
+                  <CardDescription>
+                    Abra um usuário para alterar perfil, acesso à OC e ministérios vinculados.
+                  </CardDescription>
+                </div>
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar usuário..."
+                    placeholder="Buscar por nome"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="sm:max-w-sm"
+                    className="pl-9"
                   />
-                )}
-
-                {isUsuariosExpanded ? (
-                  isLoadingUsuarios ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((item) => (
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoadingUsuarios ? (
+                  <div className="space-y-3 p-4 sm:p-6">
+                    {[1, 2, 3, 4].map((item) => (
                       <Skeleton key={item} className="h-20 w-full rounded-xl" />
                     ))}
                   </div>
-                  ) : filteredUsuarios.length === 0 ? (
-                  <div className="rounded-xl border border-dashed bg-secondary/20 px-4 py-10 text-center text-sm text-muted-foreground">
+                ) : filteredUsuarios.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-sm text-muted-foreground">
                     Nenhum usuário encontrado.
                   </div>
-                  ) : (
-                  <div className="space-y-3">
+                ) : (
+                  <div className="divide-y">
                     {filteredUsuarios.map((usuario) => {
                       const isSelf = usuario.id === user?.id;
+                      const hasOrdemCultoAccess = usuario.canViewOrdemCulto || usuario.role === 'admin';
                       return (
                         <button
                           key={usuario.id}
@@ -459,112 +634,76 @@ export default function Configuracoes() {
                             setSelectedUsuarioId(usuario.id);
                             setIsUserDialogOpen(true);
                           }}
-                          className="w-full rounded-xl border bg-background px-4 py-4 text-left transition-colors hover:bg-secondary/10"
+                          className="grid w-full gap-3 px-4 py-4 text-left transition-colors hover:bg-secondary/20 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-6"
                         >
-                          <div className="flex items-start gap-3">
-                            <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 gap-3">
+                            <Avatar className="h-11 w-11">
+                              <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                                {getInitials(usuario.nome)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate font-medium">{usuario.nome}</p>
                                 {isSelf && <Badge variant="outline">Você</Badge>}
                                 {usuario.role === 'admin' && (
-                                  <Badge className="bg-primary/10 text-primary border-0">
-                                    <Shield className="mr-1 h-3 w-3" />
+                                  <Badge className="border-0 bg-primary/10 text-primary">
+                                    <Shield className="h-3 w-3" />
                                     Admin
                                   </Badge>
                                 )}
                               </div>
-                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span className="inline-flex items-center gap-1">
-                                  <ListOrdered className="h-3.5 w-3.5" />
-                                  {usuario.canViewOrdemCulto || usuario.role === 'admin' ? 'Acesso à OC liberado' : 'Sem acesso à OC'}
-                                </span>
-                              </div>
-                              <div className="mt-3 flex flex-wrap gap-2">
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Badge variant={hasOrdemCultoAccess ? 'secondary' : 'outline'} className="gap-1">
+                                  {hasOrdemCultoAccess ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                  {hasOrdemCultoAccess ? 'OC liberada' : 'OC bloqueada'}
+                                </Badge>
                                 {usuario.setores.length === 0 ? (
-                                  <span className="text-sm text-muted-foreground">Nenhum ministério vinculado.</span>
+                                  <Badge variant="outline">Sem ministério</Badge>
                                 ) : (
-                                  usuario.setores.map((setor) => (
-                                    <Badge key={setor.id} variant="secondary" className="px-2 py-1 text-xs">
+                                  usuario.setores.slice(0, 3).map((setor) => (
+                                    <Badge key={setor.id} variant="secondary">
                                       {setor.nome}
                                     </Badge>
                                   ))
                                 )}
+                                {usuario.setores.length > 3 && (
+                                  <Badge variant="outline">+{usuario.setores.length - 3}</Badge>
+                                )}
                               </div>
                             </div>
-                            <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
+                          </div>
+                          <div className="flex items-center justify-between gap-2 sm:justify-end">
+                            <span className="text-sm text-muted-foreground">Gerenciar</span>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  )
-                ) : null}
+                )}
               </CardContent>
             </Card>
+          </TabsContent>
 
-            <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.05s' }}>
-              <CardHeader className="border-b bg-secondary/20">
-                <CardTitle className="font-serif flex items-center gap-2 text-xl">
-                  <UserPlus className="h-5 w-5 text-primary" />
-                  Criar usuário
-                </CardTitle>
-                <CardDescription>
-                  Use esta área para cadastrar novos acessos administrativos ou de membros.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 sm:p-6">
-                <div className="grid gap-4 md:grid-cols-2">
+          <TabsContent value="ministerios" className="mt-0">
+            <div className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Plus className="h-5 w-5 text-primary" />
+                    Novo ministério
+                  </CardTitle>
+                  <CardDescription>
+                    Crie opções que serão usadas nos membros e nas escalas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="nome-usuario">Nome</Label>
-                    <Input
-                      id="nome-usuario"
-                      placeholder="Nome completo"
-                      value={newUserNome}
-                      onChange={(e) => setNewUserNome(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email-usuario">Email</Label>
-                    <Input
-                      id="email-usuario"
-                      type="email"
-                      placeholder="email@exemplo.com"
-                      value={newUserEmail}
-                      onChange={(e) => setNewUserEmail(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-xl border bg-secondary/20 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-                  Senha inicial padrão: <span className="font-medium text-foreground">{SENHA_PADRAO}</span>. No primeiro login, o usuário será obrigado a criar uma nova senha.
-                </div>
-
-                <div className="flex justify-end">
-                  <Button className="w-full sm:w-auto" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
-                    {isCreatingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                    Criar usuário
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              <CardHeader className="border-b bg-secondary/20">
-                <CardTitle className="font-serif flex items-center gap-2 text-xl">
-                  <Users className="h-5 w-5 text-primary" />
-                  Ministérios
-                </CardTitle>
-                <CardDescription>
-                  Cadastre os ministérios que poderão ser usados nas escalas e nos membros.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5 p-4 sm:p-6">
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="novo-ministerio">Novo ministério</Label>
+                    <Label htmlFor="novo-ministerio">Nome do ministério</Label>
                     <Input
                       id="novo-ministerio"
-                      placeholder="Ex: Farol, Acesso, Louvor Kids"
+                      placeholder="Ex: Louvor Kids"
                       value={novoSetorNome}
                       onChange={(e) => setNovoSetorNome(e.target.value)}
                       onKeyDown={(e) => {
@@ -575,89 +714,68 @@ export default function Configuracoes() {
                       }}
                     />
                   </div>
-                  <div className="sm:self-end">
-                    <Button className="w-full sm:w-auto" onClick={handleCreateSetor} disabled={isCreatingSetor}>
-                      {isCreatingSetor ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                      Criar ministério
-                    </Button>
-                  </div>
-                </div>
+                  <Button className="w-full" onClick={handleCreateSetor} disabled={isCreatingSetor}>
+                    {isCreatingSetor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Criar ministério
+                  </Button>
+                </CardContent>
+              </Card>
 
-                <Separator />
-
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium">Ministérios cadastrados</p>
-                    <p className="text-sm text-muted-foreground">Essa lista já alimenta as escalas e a associação com membros.</p>
-                  </div>
-
+              <Card className="shadow-md">
+                <CardHeader className="border-b bg-secondary/20">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    Ministérios cadastrados
+                  </CardTitle>
+                  <CardDescription>
+                    {setores.length} ministério{setores.length === 1 ? '' : 's'} disponível{setores.length === 1 ? '' : 'is'} para vínculo.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
                   {isLoading ? (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {[1, 2, 3, 4].map((item) => (
-                        <Skeleton key={item} className="h-10 w-full rounded-lg" />
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {[1, 2, 3, 4, 5, 6].map((item) => (
+                        <Skeleton key={item} className="h-14 w-full rounded-xl" />
                       ))}
                     </div>
+                  ) : setores.length === 0 ? (
+                    <div className="rounded-xl border border-dashed bg-background px-4 py-12 text-center text-sm text-muted-foreground">
+                      Nenhum ministério cadastrado ainda.
+                    </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                       {setores.map((setor) => (
-                        <Badge key={setor.id} variant="secondary" className="px-3 py-1 text-sm">
-                          {setor.nome}
-                        </Badge>
+                        <div key={setor.id} className="flex min-h-[56px] items-center gap-3 rounded-xl border bg-background px-4 py-3">
+                          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <span className="min-w-0 truncate text-sm font-medium">{setor.nome}</span>
+                        </div>
                       ))}
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6 xl:sticky xl:top-20 xl:self-start">
-            <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.15s' }}>
-              <CardHeader className="border-b bg-secondary/20 pb-4">
-                <CardTitle className="font-serif text-xl">Resumo</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 p-4 sm:grid-cols-3 xl:grid-cols-1 sm:p-6">
-                <div className="rounded-xl border bg-background px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Admins</p>
-                  <p className="mt-1 text-2xl font-semibold">
-                    {usuarios.filter((usuario) => usuario.role === 'admin').length}
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-background px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Acesso à OC</p>
-                  <p className="mt-1 text-2xl font-semibold">
-                    {usuarios.filter((usuario) => usuario.canViewOrdemCulto || usuario.role === 'admin').length}
-                  </p>
-                </div>
-                <div className="rounded-xl border bg-background px-4 py-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Ministérios</p>
-                  <p className="mt-1 text-2xl font-semibold">{setores.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <CardHeader className="border-b bg-secondary/20 pb-4">
-                <CardTitle className="font-serif text-xl">Acesso à OC</CardTitle>
-                <CardDescription>
-                  Admin já tem acesso automático. Use a chave só para membros que precisam visualizar.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                <div className="rounded-xl border bg-secondary/20 px-4 py-4 text-sm text-muted-foreground">
-                  Quem receber essa permissão verá a área de <span className="font-medium text-foreground">OC</span> no menu e poderá abrir ordens publicadas, sem ganhar acesso administrativo ao restante do sistema.
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="font-serif">
-                {selectedUsuario ? `Gerenciar ${selectedUsuario.nome}` : 'Gerenciar usuário'}
+              <DialogTitle className="flex items-center gap-3 pr-6 text-xl">
+                {selectedUsuario && (
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                      {getInitials(selectedUsuario.nome)}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <span>{selectedUsuario ? selectedUsuario.nome : 'Gerenciar usuário'}</span>
               </DialogTitle>
+              <DialogDescription>
+                Ajuste o nível de acesso e os ministérios vinculados a este usuário.
+              </DialogDescription>
             </DialogHeader>
             {selectedUsuario && (
               <div className="mt-4 space-y-5">
@@ -682,7 +800,12 @@ export default function Configuracoes() {
                   <div className="space-y-2">
                     <Label>Acesso à OC</Label>
                     <div className="flex h-10 items-center justify-between rounded-md border px-3">
-                      <span className="text-sm text-muted-foreground">
+                      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {selectedUsuario.canViewOrdemCulto || selectedUsuario.role === 'admin' ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
                         {selectedUsuario.canViewOrdemCulto || selectedUsuario.role === 'admin' ? 'Liberado' : 'Bloqueado'}
                       </span>
                       <Switch
@@ -730,26 +853,24 @@ export default function Configuracoes() {
                     onValueChange={(value) => handleAddSetorToUsuario(selectedUsuario.id, value)}
                     disabled={
                       updatingSetorUserId === selectedUsuario.id ||
-                      setores.filter((setor) => !selectedUsuario.setores.some((currentSetor) => currentSetor.id === setor.id)).length === 0
+                      availableSetoresForSelectedUsuario.length === 0
                     }
                   >
                     <SelectTrigger>
                       <SelectValue
                         placeholder={
-                          setores.filter((setor) => !selectedUsuario.setores.some((currentSetor) => currentSetor.id === setor.id)).length === 0
+                          availableSetoresForSelectedUsuario.length === 0
                             ? 'Todos os ministérios já vinculados'
                             : 'Adicionar ministério'
                         }
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {setores
-                        .filter((setor) => !selectedUsuario.setores.some((currentSetor) => currentSetor.id === setor.id))
-                        .map((setor) => (
-                          <SelectItem key={setor.id} value={setor.id}>
-                            {setor.nome}
-                          </SelectItem>
-                        ))}
+                      {availableSetoresForSelectedUsuario.map((setor) => (
+                        <SelectItem key={setor.id} value={setor.id}>
+                          {setor.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
