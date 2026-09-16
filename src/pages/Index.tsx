@@ -11,7 +11,7 @@ export default function Index() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      navigate('/dashboard');
+      navigate('/escalas');
     }
   }, [user, isLoading, navigate]);
 

@@ -2,14 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import PasswordChangeGate from "@/components/auth/PasswordChangeGate";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ChangePassword from "./pages/ChangePassword";
-import Dashboard from "./pages/Dashboard";
 import Escalas from "./pages/Escalas";
 import EscalaDetail from "./pages/EscalaDetail";
 import Membros from "./pages/Membros";
@@ -31,7 +30,7 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -42,7 +41,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/change-password" element={<ChangePassword />} />
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Navigate to="/escalas" replace />} />
                 <Route path="/escalas" element={<Escalas />} />
                 <Route path="/escalas/:id" element={<EscalaDetail />} />
                 <Route path="/membros" element={<Membros />} />

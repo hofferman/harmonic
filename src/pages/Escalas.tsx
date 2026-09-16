@@ -82,6 +82,9 @@ export default function Escalas() {
   const [viewMode, setViewMode] = useState<ViewMode>('proximas');
   const [ministerioFilter, setMinisterioFilter] = useState('todos');
   const [monthFilter, setMonthFilter] = useState('todos');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const getMinisterioNome = (escala: Pick<Escala, 'setor'>) => escala.setor?.nome || 'Louvor';
   const getEscalaDate = (data: string) => startOfDay(new Date(`${data}T00:00:00`));
@@ -437,6 +440,112 @@ export default function Escalas() {
     );
   }
 
+  // Members need a calm agenda, not the admin management surface.
+  if (!isAdmin) {
+    const otherUpcoming = sortedUpcomingEscalas.slice(1);
+    const visibleUpcoming = showAllUpcoming ? otherUpcoming : otherUpcoming.slice(0, 3);
+    const visibleHistory = pastEscalas.slice().reverse();
+
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-2xl space-y-5 px-3 py-5 sm:p-6">
+          <header className="animate-fade-in">
+            <p className="text-sm font-semibold text-primary">Minha agenda</p>
+            <h1 className="mt-1 text-3xl font-bold">Próximas escalas</h1>
+            <p className="mt-2 text-base text-muted-foreground">Veja primeiro onde você vai servir.</p>
+          </header>
+
+          {isLoading ? (
+            <Skeleton className="h-56 w-full rounded-2xl" />
+          ) : nextEscala ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/escalas/${nextEscala.id}`)}
+              className="w-full rounded-2xl border-2 border-primary/25 bg-primary/10 p-5 text-left shadow-md transition active:scale-[0.99]"
+              aria-label={`Abrir sua próxima escala: ${nextEscala.titulo}`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-primary">Sua próxima escala</p>
+                  <h2 className="mt-2 text-2xl font-bold leading-tight">{nextEscala.titulo}</h2>
+                  <p className="mt-3 text-lg font-medium capitalize">{formatRelativeDate(nextEscala.data)}</p>
+                  <p className="mt-1 text-base text-muted-foreground">{nextEscala.minhaFuncao || 'Função a confirmar'} · {getMinisterioNome(nextEscala)}</p>
+                </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <ChevronRight className="h-6 w-6" />
+                </div>
+              </div>
+              <div className="mt-5 rounded-xl bg-background/70 px-4 py-3 text-center text-base font-semibold">
+                Ver detalhes e repertório
+              </div>
+            </button>
+          ) : (
+            <Card className="border-dashed shadow-sm">
+              <CardContent className="px-5 py-10 text-center">
+                <CalendarDays className="mx-auto h-12 w-12 text-primary" />
+                <h2 className="mt-4 text-xl font-semibold">Nenhuma escala próxima</h2>
+                <p className="mt-2 text-base text-muted-foreground">Quando você for escalado, ela aparecerá aqui.</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isLoading && otherUpcoming.length > 0 && (
+            <section className="animate-slide-up" aria-labelledby="outras-escalas">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 id="outras-escalas" className="text-xl font-semibold">Depois desta</h2>
+                <Badge variant="outline">{otherUpcoming.length}</Badge>
+              </div>
+              <div className="space-y-3">
+                {visibleUpcoming.map((escala) => (
+                  <button
+                    key={escala.id}
+                    type="button"
+                    onClick={() => navigate(`/escalas/${escala.id}`)}
+                    className="flex min-h-[88px] w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/40"
+                  >
+                    <div className="w-14 shrink-0 rounded-lg bg-secondary px-2 py-2 text-center">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">{format(getEscalaDate(escala.data), 'MMM', { locale: ptBR })}</p>
+                      <p className="text-2xl font-bold leading-none">{format(getEscalaDate(escala.data), 'd')}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-lg font-semibold">{escala.titulo}</p>
+                      <p className="mt-1 text-base text-muted-foreground">{escala.minhaFuncao || getMinisterioNome(escala)}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-primary" />
+                  </button>
+                ))}
+              </div>
+              {otherUpcoming.length > 3 && (
+                <Button variant="outline" className="mt-3 w-full" onClick={() => setShowAllUpcoming(!showAllUpcoming)}>
+                  {showAllUpcoming ? 'Mostrar menos' : `Ver mais ${otherUpcoming.length - 3} escala${otherUpcoming.length - 3 === 1 ? '' : 's'}`}
+                </Button>
+              )}
+            </section>
+          )}
+
+          {!isLoading && pastEscalas.length > 0 && (
+            <section className="border-t pt-5">
+              <Button variant="ghost" className="w-full justify-between text-base" onClick={() => setShowHistory(!showHistory)} aria-expanded={showHistory}>
+                Escalas anteriores ({pastEscalas.length})
+                <ChevronRight className={`h-5 w-5 transition-transform ${showHistory ? 'rotate-90' : ''}`} />
+              </Button>
+              {showHistory && (
+                <div className="mt-3 space-y-2">
+                  {visibleHistory.map((escala) => (
+                    <button key={escala.id} type="button" onClick={() => navigate(`/escalas/${escala.id}`)} className="flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left">
+                      <span><span className="block font-semibold">{escala.titulo}</span><span className="text-sm text-muted-foreground capitalize">{formatRelativeDate(escala.data)}</span></span>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
@@ -516,7 +625,7 @@ export default function Escalas() {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-slide-up">
+        {isAdmin && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-slide-up">
           <div className="rounded-lg border bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">Próximas</p>
@@ -545,7 +654,7 @@ export default function Escalas() {
             </div>
             <p className="mt-2 text-2xl font-bold">{isLoading ? '-' : pastEscalas.length}</p>
           </div>
-        </div>
+        </div>}
 
         {nextEscala && (
           <button
@@ -566,6 +675,24 @@ export default function Escalas() {
           </button>
         )}
 
+        {!isAdmin && nextEscala && (
+          <section className="rounded-xl border bg-card p-4 shadow-sm animate-slide-up" aria-labelledby="minha-participacao">
+            <p className="text-sm font-medium text-primary">Sua participação</p>
+            <h2 id="minha-participacao" className="mt-1 text-lg font-semibold">Prepare-se para este culto</h2>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-secondary/30 p-3">
+                <p className="text-xs text-muted-foreground">Sua função</p>
+                <p className="mt-1 font-semibold">{nextEscala.minhaFuncao || 'A confirmar'}</p>
+              </div>
+              <div className="rounded-lg bg-secondary/30 p-3">
+                <p className="text-xs text-muted-foreground">Repertório</p>
+                <p className="mt-1 font-semibold">{nextEscala.musicas_count || 0} música{nextEscala.musicas_count === 1 ? '' : 's'}</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* The full agenda is intentionally the last section: first show what the member needs now. */}
         <Card className="border-0 shadow-lg animate-slide-up" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="border-b bg-secondary/20 px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -579,7 +706,13 @@ export default function Escalas() {
                 </CardDescription>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_160px_160px] lg:min-w-[640px]">
+              {!isAdmin && (
+                <Button type="button" variant="outline" className="w-full lg:w-auto" onClick={() => setFiltersOpen(!filtersOpen)} aria-expanded={filtersOpen}>
+                  <Filter className="h-4 w-4" />
+                  {filtersOpen ? 'Fechar filtros' : 'Buscar e filtrar'}
+                </Button>
+              )}
+              <div className={`${isAdmin || filtersOpen ? 'grid' : 'hidden'} gap-2 sm:grid-cols-[minmax(220px,1fr)_160px_160px] lg:min-w-[640px]`}>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -618,7 +751,7 @@ export default function Escalas() {
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className={`${isAdmin || filtersOpen ? 'flex' : 'hidden'} mt-4 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
               <div className="grid grid-cols-3 rounded-lg border bg-background p-1">
                 {[
                   { value: 'proximas', label: 'Próximas' },

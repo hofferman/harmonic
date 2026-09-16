@@ -14,7 +14,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Music2,
-  LayoutDashboard,
   Calendar,
   Users,
   Music,
@@ -22,7 +21,8 @@ import {
   LogOut,
   Menu,
   ChevronRight,
-  ListOrdered
+  ListOrdered,
+  MoreHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -32,7 +32,6 @@ interface AppLayoutProps {
 }
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
   { href: '/escalas', label: 'Escalas', icon: Calendar, adminOnly: false },
   { href: '/ordens-culto', label: 'Ordem de Culto', icon: ListOrdered, adminOnly: false },
   { href: '/membros', label: 'Membros', icon: Users, adminOnly: true },
@@ -66,6 +65,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
     return !item.adminOnly || isAdmin;
   });
+  const primaryMobileItems = filteredNavItems.filter((item) =>
+    ['/escalas', '/ordens-culto'].includes(item.href),
+  );
+  const hasMobileBottomNav = isAdmin || primaryMobileItems.length > 1;
 
   const NavLinks = ({ mobile = false }: { mobile?: boolean }) => (
     <nav className={cn("space-y-1", mobile && "mt-8")}>
@@ -96,25 +99,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-b">
-        <div className="flex items-center justify-between px-4 h-16">
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-4">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <Music2 className="w-5 h-5 text-primary-foreground" />
+        <div className="flex items-center justify-between px-3 h-16">
+          {isAdmin && (
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Abrir menu">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-4">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
+                    <Music2 className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h2 className="font-serif font-semibold">Harmonic</h2>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="font-serif font-semibold">Harmonic</h2>
-                </div>
-              </div>
-              <NavLinks mobile />
-            </SheetContent>
-          </Sheet>
+                <NavLinks mobile />
+              </SheetContent>
+            </Sheet>
+          )}
 
           <div className="flex items-center gap-2">
             <Music2 className="w-6 h-6 text-primary" />
@@ -125,7 +130,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
+                <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" aria-label="Abrir opções da conta">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                       {profile?.nome ? getInitials(profile.nome) : '?'}
@@ -152,6 +157,39 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
       </header>
+
+      {/* Mobile bottom navigation keeps the most common destinations visible. */}
+      {hasMobileBottomNav && (
+        <nav className="fixed inset-x-0 bottom-0 z-50 flex h-[72px] items-stretch border-t bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm lg:hidden" aria-label="Navegação principal">
+          {primaryMobileItems.map((item) => {
+          const active = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg text-xs font-medium transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="truncate">{item.href === '/escalas' ? 'Minha agenda' : item.label}</span>
+            </Link>
+          );
+          })}
+          {isAdmin && (
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg text-xs font-medium text-muted-foreground"
+              onClick={() => setIsOpen(true)}
+              aria-label="Abrir mais opções"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+              <span>Mais</span>
+            </button>
+          )}
+        </nav>
+      )}
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex lg:flex-col bg-card border-r">
@@ -203,7 +241,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main Content */}
       <main className="lg:pl-64">
-        <div className="pt-16 lg:pt-0 min-h-screen">
+        <div className={cn('min-h-screen pt-16 lg:pt-0 lg:pb-0', hasMobileBottomNav && 'pb-[calc(72px+env(safe-area-inset-bottom))]')}>
           {children}
         </div>
       </main>

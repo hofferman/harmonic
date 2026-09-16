@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { Music2, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Music2, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -21,10 +21,12 @@ export default function Auth() {
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupNome, setSignupNome] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
-      navigate(profile.must_change_password ? '/change-password' : '/dashboard');
+      navigate(profile.must_change_password ? '/change-password' : '/escalas');
     }
   }, [user, profile, navigate]);
 
@@ -97,44 +99,64 @@ export default function Auth() {
         title: 'Conta criada!',
         description: 'Seu cadastro foi realizado com sucesso.',
       });
-      navigate('/dashboard');
+      navigate('/escalas');
     }
     
     setIsLoading(false);
   };
 
+  const handlePasswordReset = async () => {
+    if (!loginEmail.trim()) {
+      toast({
+        title: 'Informe seu email',
+        description: 'Digite seu email acima e toque novamente em “Esqueci minha senha”.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail, {
+      redirectTo: `${window.location.origin}/change-password`,
+    });
+    setIsLoading(false);
+
+    toast(error
+      ? { title: 'Não foi possível enviar o link', description: error.message, variant: 'destructive' }
+      : { title: 'Confira seu email', description: 'Enviamos um link para criar uma nova senha.' },
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-warm flex items-center justify-center px-3 py-6 sm:p-4">
-      {/* Theme Toggle */}
-      <div className="fixed top-4 right-4 z-50">
-        <ThemeToggle />
-      </div>
-      
-      <div className="w-full max-w-md animate-slide-up">
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-primary shadow-glow mb-4">
-            <Music2 className="w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-warm px-3 py-6 sm:p-4">
+      <div className="absolute inset-x-0 top-0 h-56 bg-primary/10 blur-3xl" />
+      <div className="absolute bottom-0 right-0 h-64 w-64 bg-primary/5 blur-3xl" />
+
+      <div className="relative w-full max-w-md animate-slide-up">
+        <div className="mb-6 text-center sm:mb-8">
+          <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary shadow-glow sm:h-16 sm:w-16">
+            <Music2 className="h-7 w-7 text-primary-foreground sm:h-8 sm:w-8" />
           </div>
-          <h1 className="text-3xl font-serif font-bold text-foreground leading-tight">
+          <h1 className="text-3xl font-bold leading-tight text-foreground">
             Harmonic
           </h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="mt-2 text-muted-foreground">
             Gestão de escalas e músicas
           </p>
         </div>
 
-        <Card className="shadow-lg border-0">
-          <CardHeader className="space-y-1 px-4 pb-4 sm:px-6">
-            <CardTitle className="text-2xl font-serif text-center leading-tight">
+        <Card className="border border-border/80 bg-card/95 shadow-2xl backdrop-blur">
+          <CardHeader className="space-y-1 px-4 pb-4 text-center sm:px-6">
+            <CardTitle className="text-2xl leading-tight">
               Acesse sua conta
             </CardTitle>
-            <CardDescription className="text-center">
+            <CardDescription>
               Entre com seu email ou crie uma nova conta
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="mb-6 grid h-11 w-full grid-cols-2 rounded-lg bg-background/80">
                 <TabsTrigger value="login">Entrar</TabsTrigger>
                 <TabsTrigger value="signup">Cadastrar</TabsTrigger>
               </TabsList>
@@ -151,20 +173,37 @@ export default function Auth() {
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11 bg-background/80"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Senha</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showLoginPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        disabled={isLoading}
+                        className="bg-background/80 pr-12"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-11 w-11"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showLoginPassword ? <EyeOff /> : <Eye />}
+                      </Button>
+                    </div>
                   </div>
+                  <Button type="button" variant="link" className="-mt-2 h-auto px-0 text-base" onClick={handlePasswordReset} disabled={isLoading}>
+                    Esqueci minha senha
+                  </Button>
                   <Button
                     type="submit"
                     className="w-full"
@@ -196,6 +235,7 @@ export default function Auth() {
                       onChange={(e) => setSignupNome(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11 bg-background/80"
                     />
                   </div>
                   <div className="space-y-2">
@@ -208,19 +248,33 @@ export default function Auth() {
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11 bg-background/80"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Senha</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="Mínimo 6 caracteres"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      required
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        type={showSignupPassword ? 'text' : 'password'}
+                        placeholder="Mínimo 6 caracteres"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        required
+                        disabled={isLoading}
+                        className="bg-background/80 pr-12"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-11 w-11"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                        aria-label={showSignupPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showSignupPassword ? <EyeOff /> : <Eye />}
+                      </Button>
+                    </div>
                   </div>
                   <Button
                     type="submit"

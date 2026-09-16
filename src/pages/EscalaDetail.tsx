@@ -17,7 +17,7 @@ import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   ArrowLeft, Calendar, Users, Music, Plus, Trash2, 
-  ChevronUp, ChevronDown, ExternalLink, Star, FileText, X, Edit2, ChevronsUpDown, Check
+  ChevronUp, ChevronDown, ExternalLink, Star, FileText, X, Edit2, ChevronsUpDown, Check, Type
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -121,6 +121,7 @@ export default function EscalaDetail() {
   // View letra dialog
   const [isLetraDialogOpen, setIsLetraDialogOpen] = useState(false);
   const [viewingMusica, setViewingMusica] = useState<EscalaMusica['musica'] | null>(null);
+  const [largeCifra, setLargeCifra] = useState(true);
 
   // Edit music dialog
   const [isEditMusicOpen, setIsEditMusicOpen] = useState(false);
@@ -806,13 +807,13 @@ export default function EscalaDetail() {
                         <div className="flex items-center gap-1">
                           {item.musica.letra && (
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
+                              variant="outline"
+                              className="h-11 px-3"
                               onClick={() => openLetraDialog(item.musica)}
-                              title="Ver letra/cifra"
+                              aria-label={`Ler cifra de ${item.musica.titulo}`}
                             >
                               <FileText className="w-4 h-4" />
+                              <span>Ler cifra</span>
                             </Button>
                           )}
                           {item.musica.link && (
@@ -1032,14 +1033,14 @@ export default function EscalaDetail() {
 
         {/* Letra/Cifra View Dialog */}
         <Dialog open={isLetraDialogOpen} onOpenChange={setIsLetraDialogOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-4xl h-[88vh] sm:h-[90vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-4xl h-[92vh] sm:h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="font-serif flex items-center gap-2">
                 <FileText className="w-5 h-5" />
                 {viewingMusica?.titulo}
               </DialogTitle>
             </DialogHeader>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-base text-muted-foreground">
               {viewingMusica?.artista && (
                 <span>Artista: {viewingMusica.artista}</span>
               )}
@@ -1048,13 +1049,17 @@ export default function EscalaDetail() {
               )}
             </div>
             <ScrollArea className="flex-1 mt-4">
-              <pre className="font-mono text-sm whitespace-pre-wrap leading-relaxed p-4 bg-secondary/30 rounded-lg">
+              <pre className={`font-mono whitespace-pre-wrap leading-[1.9] p-4 bg-secondary/30 rounded-lg ${largeCifra ? 'text-lg sm:text-xl' : 'text-base'}`}>
                 {viewingMusica?.letra || 'Nenhuma letra/cifra cadastrada.'}
               </pre>
             </ScrollArea>
-            <div className="flex justify-end pt-4">
-              <Button variant="outline" onClick={() => setIsLetraDialogOpen(false)}>
+            <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsLetraDialogOpen(false)}>
                 Fechar
+              </Button>
+              <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setLargeCifra(!largeCifra)}>
+                <Type className="h-4 w-4" />
+                {largeCifra ? 'Texto normal' : 'Texto maior'}
               </Button>
             </div>
           </DialogContent>
