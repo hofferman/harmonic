@@ -1,0 +1,53 @@
+name: Funcionalidade
+description: Sugerir algo novo
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Que problema isso resolve
+      description: Descreva a dor, não a solução.
+      placeholder: Os músicos esquecem a escala e ninguém confirma presença.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solucao
+    attributes:
+      label: Solução imaginada
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Escalas
+        - Músicas
+        - Membros
+        - Ordem de culto
+        - Notificações
+        - Login e permissões
+        - Outra
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prioridade
+    attributes:
+      label: Prioridade
+      options:
+        - Alta — bloqueia o uso
+        - Média — melhoraria bastante
+        - Baixa — seria bom ter
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: multi
+    attributes:
+      label: Relevante para venda a outras igrejas?
+      options:
+        - label: Sim, outras igrejas também precisariam disso

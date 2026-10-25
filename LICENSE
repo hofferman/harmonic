@@ -1,0 +1,49 @@
+Copyright (c) 2026 Gabriel Hofferman. Todos os direitos reservados.
+
+LICENÇA PROPRIETÁRIA — SOFTWARE HARMONIC
+
+Este software e sua documentação ("Software") são propriedade exclusiva de
+Gabriel Hofferman ("Titular") e estão protegidos pela Lei nº 9.610/1998
+(Direitos Autorais), pela Lei nº 9.609/1998 (Programa de Computador) e por
+tratados internacionais.
+
+1. RESERVA DE DIREITOS
+
+   Nenhuma licença, expressa ou implícita, é concedida por este documento.
+   O código-fonte estar visível publicamente NÃO constitui permissão de uso.
+
+2. CONDUTAS VEDADAS
+
+   Sem autorização prévia e por escrito do Titular, é proibido:
+
+   a) usar o Software, no todo ou em parte, para qualquer finalidade;
+   b) copiar, reproduzir ou armazenar o Software;
+   c) modificar, adaptar, traduzir ou criar obras derivadas;
+   d) distribuir, sublicenciar, vender, alugar ou ceder o Software;
+   e) hospedar o Software como serviço a terceiros;
+   f) remover ou alterar avisos de autoria e propriedade;
+   g) realizar engenharia reversa, salvo nas hipóteses legalmente garantidas.
+
+3. CONTRIBUIÇÕES
+
+   Contribuições enviadas ao repositório são cedidas ao Titular em caráter
+   irrevogável, gratuito e sem limitação territorial ou temporal, nos termos
+   do arquivo CONTRIBUTING.md.
+
+4. LICENCIAMENTO COMERCIAL
+
+   O Software é disponibilizado a terceiros mediante contrato próprio.
+   Para contratar, entre em contato com o Titular.
+
+5. AUSÊNCIA DE GARANTIA
+
+   O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE
+   QUALQUER NATUREZA, EXPRESSA OU IMPLÍCITA, INCLUINDO MAS NÃO SE LIMITANDO
+   A GARANTIAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A FINALIDADE ESPECÍFICA E NÃO
+   VIOLAÇÃO. EM NENHUMA HIPÓTESE O TITULAR RESPONDERÁ POR DANOS DECORRENTES
+   DO USO OU DA IMPOSSIBILIDADE DE USO DO SOFTWARE.
+
+6. FORO
+
+   Fica eleito o foro da Comarca de São Paulo/SP para dirimir controvérsias
+   decorrentes desta licença.

@@ -1,0 +1,57 @@
+name: Bug
+description: Algo não está funcionando
+title: "fix: "
+labels: [bug]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que acontece
+      placeholder: Ao salvar a escala, o repertório some.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que deveria acontecer
+    validations:
+      required: true
+
+  - type: dropdown
+    id: onde
+    attributes:
+      label: Onde acontece
+      options:
+        - Celular
+        - Desktop
+        - Ambos
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gravidade
+    attributes:
+      label: Gravidade
+      options:
+        - Impede o uso
+        - Atrapalha, mas dá para contornar
+        - Incômodo pequeno
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Print ou erro do console

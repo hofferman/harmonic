@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publicar release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build de producao
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://exemplo.invalido
+          VITE_SUPABASE_PUBLISHABLE_KEY: chave-ficticia-para-build
+          VITE_SUPABASE_PROJECT_ID: ci
+
+      - name: Empacotar artefato
+        run: |
+          VERSAO="${GITHUB_REF_NAME}"
+          tar -czf "harmonic-${VERSAO}.tar.gz" -C dist .
+          sha256sum "harmonic-${VERSAO}.tar.gz" > "harmonic-${VERSAO}.tar.gz.sha256"
+          ls -la harmonic-*
+
+      - name: Montar notas a partir dos commits
+        id: notas
+        run: |
+          ANTERIOR=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          {
+            echo "## O que mudou"
+            echo
+            if [ -n "$ANTERIOR" ]; then
+              git log --pretty='- %s (%h)' "${ANTERIOR}..${GITHUB_REF_NAME}"
+              echo
+              echo "**Comparar:** ${ANTERIOR}...${GITHUB_REF_NAME}"
+            else
+              git log --pretty='- %s (%h)' -20
+            fi
+          } > NOTAS.md
+          cat NOTAS.md
+
+      - name: Criar release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: NOTAS.md
+          files: |
+            harmonic-*.tar.gz
+            harmonic-*.tar.gz.sha256
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
