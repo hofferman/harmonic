@@ -251,18 +251,24 @@ export type Database = {
           id: string
           must_change_password: boolean
           nome: string
+          telefone: string | null
+          receber_avisos: boolean
         }
         Insert: {
           created_at?: string
           id: string
           must_change_password?: boolean
           nome: string
+          telefone?: string | null
+          receber_avisos?: boolean
         }
         Update: {
           created_at?: string
           id?: string
           must_change_password?: boolean
           nome?: string
+          telefone?: string | null
+          receber_avisos?: boolean
         }
         Relationships: []
       }

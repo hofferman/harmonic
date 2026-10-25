@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2 } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2, Phone, BellOff } from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
 
 interface MembroFuncao {
@@ -28,12 +28,33 @@ interface Setor {
 interface Membro {
   id: string;
   nome: string;
+  telefone?: string | null;
+  receber_avisos?: boolean;
   created_at: string;
   must_change_password?: boolean;
   role?: 'admin' | 'membro';
   funcoes: MembroFuncao[];
   setores: Setor[];
 }
+
+// Guarda so digitos no formato internacional (55 + DDD + numero), que e o
+// que a Evolution API espera. A tela aceita o numero digitado de qualquer
+// jeito e normaliza aqui.
+const normalizarTelefone = (bruto: string): string | null => {
+  const d = (bruto || '').replace(/\D/g, '');
+  if (!d) return null;
+  const comPais = d.startsWith('55') ? d : `55${d}`;
+  // 55 + DDD (2) + numero (8 ou 9)
+  return /^55[1-9][0-9]{9,10}$/.test(comPais) ? comPais : null;
+};
+
+const formatarTelefone = (tel?: string | null): string => {
+  if (!tel) return '';
+  const d = tel.replace(/\D/g, '').replace(/^55/, '');
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return tel;
+};
 
 const SENHA_PADRAO = 'Mudar@123';
 
@@ -73,6 +94,10 @@ export default function Membros() {
   // Edit name
   const [editingNomeId, setEditingNomeId] = useState<string | null>(null);
   const [editingNomeValue, setEditingNomeValue] = useState('');
+
+  // telefone para o aviso de escala no WhatsApp
+  const [editingTelId, setEditingTelId] = useState<string | null>(null);
+  const [editingTelValue, setEditingTelValue] = useState('');
 
   // Change role dialog
   const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
@@ -115,13 +140,13 @@ export default function Membros() {
       // Fetch all profiles
       let { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, nome, created_at, must_change_password')
+        .select('id, nome, telefone, receber_avisos, created_at, must_change_password')
         .order('nome');
 
       if (profilesError && profilesError.message.includes('must_change_password')) {
         const fallback = await supabase
           .from('profiles')
-          .select('id, nome, created_at')
+          .select('id, nome, telefone, receber_avisos, created_at')
           .order('nome');
 
         profilesData = fallback.data?.map(profile => ({
@@ -323,6 +348,60 @@ export default function Membros() {
         description: error.message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleEditTelefone = async (membroId: string) => {
+    const bruto = editingTelValue.trim();
+
+    // campo vazio remove o telefone (a pessoa deixa de receber aviso)
+    const valor = bruto === '' ? null : normalizarTelefone(bruto);
+    if (bruto !== '' && valor === null) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Use DDD + número, ex: (11) 98765-4321.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ telefone: valor })
+        .eq('id', membroId);
+
+      if (error) throw error;
+
+      toast({ title: valor ? 'Telefone salvo!' : 'Telefone removido.' });
+      setEditingTelId(null);
+      setEditingTelValue('');
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleToggleAvisos = async (membroId: string, atual: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ receber_avisos: !atual })
+        .eq('id', membroId);
+
+      if (error) throw error;
+
+      toast({
+        title: !atual ? 'Avisos ativados' : 'Avisos desativados',
+        description: !atual
+          ? 'Esta pessoa voltará a receber aviso de escala.'
+          : 'Esta pessoa não receberá mais aviso de escala.',
+      });
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -561,7 +640,93 @@ export default function Membros() {
                             </Badge>
                           )}
                         </div>
-                        
+
+                        {/* WhatsApp: telefone para o aviso de escala */}
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          {editingTelId === membro.id ? (
+                            <div className="flex w-full items-center gap-1 sm:w-auto">
+                              <Input
+                                value={editingTelValue}
+                                onChange={(e) => setEditingTelValue(e.target.value)}
+                                placeholder="(11) 98765-4321"
+                                inputMode="tel"
+                                className="h-8 min-w-0 flex-1 sm:w-44"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleEditTelefone(membro.id);
+                                  if (e.key === 'Escape') setEditingTelId(null);
+                                }}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-7 h-7 text-green-500"
+                                onClick={() => handleEditTelefone(membro.id)}
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-7 h-7 text-destructive"
+                                onClick={() => setEditingTelId(null)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors group/tel"
+                              onClick={() => {
+                                setEditingTelId(membro.id);
+                                setEditingTelValue(formatarTelefone(membro.telefone));
+                              }}
+                              title="Clique para editar o WhatsApp"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                              {membro.telefone ? (
+                                <span>{formatarTelefone(membro.telefone)}</span>
+                              ) : (
+                                <span className="italic">Adicionar WhatsApp</span>
+                              )}
+                              <Pencil className="w-3 h-3 opacity-0 group-hover/tel:opacity-50 transition-opacity" />
+                            </button>
+                          )}
+
+                          {membro.telefone && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`h-7 px-2 text-xs ${
+                                membro.receber_avisos === false
+                                  ? 'text-amber-600'
+                                  : 'text-muted-foreground'
+                              }`}
+                              onClick={() =>
+                                handleToggleAvisos(membro.id, membro.receber_avisos !== false)
+                              }
+                              title={
+                                membro.receber_avisos === false
+                                  ? 'Avisos desativados — clique para ativar'
+                                  : 'Recebe aviso de escala — clique para desativar'
+                              }
+                            >
+                              {membro.receber_avisos === false ? (
+                                <>
+                                  <BellOff className="w-3.5 h-3.5 mr-1" />
+                                  Sem avisos
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-3.5 h-3.5 mr-1" />
+                                  Recebe avisos
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+
                         {/* Functions */}
                         <div className="mt-3">
                           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ministérios</p>
