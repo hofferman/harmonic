@@ -53,9 +53,6 @@ interface Escala {
   minhaFuncao?: string;
 }
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 type ViewMode = 'proximas' | 'todas' | 'passadas';
 
 const getErrorMessage = (error: unknown) => {
@@ -305,49 +302,18 @@ export default function Escalas() {
     setIsCreating(true);
     try {
       let createdEscalaId: string | null = null;
-      const baseInsert = {
-        data: novaEscalaData,
-        titulo: selectedSetor?.nome || 'Louvor',
-        created_by: user?.id,
-      };
-      const canPersistSetorId = UUID_REGEX.test(novoSetorId);
-
-      let createdEscala = null;
-      let error = null;
-
-      if (canPersistSetorId) {
-        const insertWithSetor = await supabase
-          .from('escalas')
-          .insert({
-            ...baseInsert,
-            setor_id: novoSetorId,
-          })
-          .select('id')
-          .single();
-
-        createdEscala = insertWithSetor.data;
-        error = insertWithSetor.error;
-      }
-
-      const shouldRetryWithoutSetor =
-        !canPersistSetorId ||
-        error?.message?.includes("column 'setor_id'") ||
-        error?.message?.includes('setor_id') ||
-        error?.message?.includes('schema cache') ||
-        error?.message?.includes('invalid input syntax for type uuid') ||
-        error?.message?.includes('violates foreign key constraint') ||
-        error?.message?.includes("Could not find the 'setor'");
-
-      if (!createdEscalaId && (!canPersistSetorId || (error && shouldRetryWithoutSetor))) {
-        const fallbackInsert = await supabase
-          .from('escalas')
-          .insert(baseInsert)
-          .select('id')
-          .single();
-
-        createdEscala = fallbackInsert.data;
-        error = fallbackInsert.error;
-      }
+      // escalas.setor_id é NOT NULL no banco (migration 20260522001000),
+      // então toda escala precisa de ministério: sem fallback sem setor.
+      const { data: createdEscala, error } = await supabase
+        .from('escalas')
+        .insert({
+          data: novaEscalaData,
+          titulo: selectedSetor?.nome || 'Louvor',
+          created_by: user?.id,
+          setor_id: novoSetorId,
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 

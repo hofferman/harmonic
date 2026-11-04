@@ -122,9 +122,7 @@ export default function Dashboard() {
         .limit(5);
 
       if (escalasData) {
-        const filtered = escalasData.filter((e): e is EscalaMembro & { escala: Escala } => 
-          e.escala !== null
-        );
+        const filtered = escalasData.filter((e) => e.escala !== null) as (EscalaMembro & { escala: Escala })[];
         nextMinhasEscalas = filtered;
         setMinhasEscalas(nextMinhasEscalas);
         
