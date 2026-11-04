@@ -405,6 +405,45 @@ export type Database = {
         }
         Relationships: []
       }
+      invitations: {
+        Row: {
+          id: string
+          token: string
+          email: string
+          telefone: string | null
+          nome: string
+          invited_by: string
+          created_at: string
+          expires_at: string
+          accepted_at: string | null
+          created_user_id: string | null
+        }
+        Insert: {
+          id?: string
+          token: string
+          email: string
+          telefone?: string | null
+          nome: string
+          invited_by: string
+          created_at?: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_user_id?: string | null
+        }
+        Update: {
+          id?: string
+          token?: string
+          email?: string
+          telefone?: string | null
+          nome?: string
+          invited_by?: string
+          created_at?: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -424,6 +463,21 @@ export type Database = {
       is_member_of_escala: {
         Args: { _escala_id: string; _user_id: string }
         Returns: boolean
+      }
+      generate_invitation_token: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      validate_invitation: {
+        Args: { p_token: string }
+        Returns: {
+          invitation_id: string
+          email: string
+          nome: string
+          telefone: string | null
+          is_valid: boolean
+          reason: string | null
+        }[]
       }
     }
     Enums: {

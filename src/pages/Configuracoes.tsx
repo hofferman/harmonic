@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
+import InvitationManagement from '@/components/admin/InvitationManagement';
 import {
   Settings,
   UserPlus,
@@ -32,6 +33,7 @@ import {
   UserCog,
   Eye,
   EyeOff,
+  Mail,
 } from 'lucide-react';
 
 interface Setor {
@@ -459,6 +461,10 @@ export default function Configuracoes() {
                 <Building2 className="h-4 w-4" />
                 Ministérios
               </TabsTrigger>
+              <TabsTrigger value="convites" className="gap-2 rounded-lg px-4 py-2">
+                <Mail className="h-4 w-4" />
+                Convites
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -757,6 +763,10 @@ export default function Configuracoes() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="convites" className="mt-0">
+            <InvitationManagement />
           </TabsContent>
         </Tabs>
 

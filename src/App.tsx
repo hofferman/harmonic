@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import PasswordChangeGate from "@/components/auth/PasswordChangeGate";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AceitarConvite from "./pages/AceitarConvite";
 import ChangePassword from "./pages/ChangePassword";
 import Escalas from "./pages/Escalas";
 import EscalaDetail from "./pages/EscalaDetail";
@@ -40,6 +41,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/aceitar-convite" element={<AceitarConvite />} />
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/dashboard" element={<Navigate to="/escalas" replace />} />
                 <Route path="/escalas" element={<Escalas />} />
