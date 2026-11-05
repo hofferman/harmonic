@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { criarConvite, telefoneConviteValido } from '@/lib/convite';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2 } from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
@@ -35,7 +36,6 @@ interface Membro {
   setores: Setor[];
 }
 
-const SENHA_PADRAO = 'Mudar@123';
 
 const FUNCOES_DISPONIVEIS = [
   'Vocal Principal',
@@ -83,6 +83,7 @@ export default function Membros() {
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [newUserNome, setNewUserNome] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserTelefone, setNewUserTelefone] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
@@ -358,11 +359,21 @@ export default function Membros() {
   const handleCreateUser = async () => {
     const nome = newUserNome.trim();
     const email = newUserEmail.trim().toLowerCase();
+    const telefone = newUserTelefone.replace(/\D/g, '');
 
-    if (!nome || !email) {
+    if (!nome || !email || !telefone) {
       toast({
         title: 'Preencha os dados',
-        description: 'Nome e email são obrigatórios.',
+        description: 'Nome, email e WhatsApp são obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!telefoneConviteValido(telefone)) {
+      toast({
+        title: 'WhatsApp inválido',
+        description: 'Use DDD + número, ex: (11) 98765-4321.',
         variant: 'destructive',
       });
       return;
@@ -370,27 +381,27 @@ export default function Membros() {
 
     setIsCreatingUser(true);
     try {
-      const { error } = await supabase.functions.invoke('admin-create-user', {
-        body: { nome, email },
-      });
+      const resultado = await criarConvite({ nome, email, telefone });
 
-      if (error) throw error;
-
-      toast({
-        title: 'Usuário criado!',
-        description: `Senha temporária: ${SENHA_PADRAO}. O usuário deverá trocar no primeiro login.`,
-      });
+      if (resultado.whatsappEnviado) {
+        toast({ title: 'Convite enviado pelo WhatsApp!' });
+      } else {
+        toast({
+          title: 'Convite criado, mas o WhatsApp não foi enviado',
+          description: `${resultado.erroWhatsapp ?? ''} Link: ${resultado.inviteUrl}`,
+          variant: 'destructive',
+        });
+      }
       setIsCreateUserOpen(false);
       setNewUserNome('');
       setNewUserEmail('');
+      setNewUserTelefone('');
       clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
-        title: 'Erro ao criar usuário',
-        description: error.message === 'Failed to send a request to the Edge Function'
-          ? 'A função admin-create-user ainda não está publicada no Supabase. Publique a Edge Function para criar usuários já confirmados.'
-          : error.message,
+        title: 'Erro ao criar convite',
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -771,11 +782,8 @@ export default function Membros() {
               <DialogTitle className="font-serif">Criar usuário</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
-              <div className="rounded-md border bg-secondary/40 p-3 text-sm">
-                Senha temporária: <span className="font-semibold">{SENHA_PADRAO}</span>
-                <p className="text-muted-foreground mt-1">
-                  No primeiro login, o usuário será obrigado a criar uma nova senha.
-                </p>
+              <div className="rounded-md border bg-secondary/40 p-3 text-sm text-muted-foreground">
+                A pessoa recebe um convite pelo WhatsApp e cria a própria senha.
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-user-nome">Nome</Label>
@@ -798,14 +806,25 @@ export default function Membros() {
                   disabled={isCreatingUser}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-user-telefone">WhatsApp</Label>
+                <Input
+                  id="new-user-telefone"
+                  type="tel"
+                  value={newUserTelefone}
+                  onChange={(event) => setNewUserTelefone(event.target.value)}
+                  placeholder="(11) 98765-4321"
+                  disabled={isCreatingUser}
+                />
+              </div>
               <Button className="w-full" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
                 {isCreatingUser ? (
                   <>
                     <Loader2 className="animate-spin" />
-                    Criando...
+                    Enviando convite...
                   </>
                 ) : (
-                  'Criar com senha temporária'
+                  'Criar e enviar convite'
                 )}
               </Button>
             </div>

@@ -17,6 +17,7 @@ import OrdensCulto from "./pages/OrdensCulto";
 import OrdemCultoEditor from "./pages/OrdemCultoEditor";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
+import AceitarConvite from "./pages/AceitarConvite";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/aceitar-convite" element={<AceitarConvite />} />
                 <Route path="/change-password" element={<ChangePassword />} />
                 <Route path="/dashboard" element={<Navigate to="/escalas" replace />} />
                 <Route path="/escalas" element={<Escalas />} />

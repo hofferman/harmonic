@@ -5,8 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const DEFAULT_PASSWORD = 'Mudar@123';
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -48,7 +46,7 @@ Deno.serve(async (req) => {
 
     if (roleError) throw roleError;
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Apenas admins podem criar usuarios.' }), {
+      return new Response(JSON.stringify({ error: 'Apenas admins podem criar convites.' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -57,6 +55,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const nome = String(body.nome ?? '').trim();
     const email = String(body.email ?? '').trim().toLowerCase();
+    const telefone = body.telefone ? String(body.telefone).replace(/\D/g, '') : null;
 
     if (!nome || !email) {
       return new Response(JSON.stringify({ error: 'Nome e email sao obrigatorios.' }), {
@@ -65,28 +64,70 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email,
-      password: DEFAULT_PASSWORD,
-      email_confirm: true,
-      user_metadata: {
+    // Check if email already registered
+    const { data: existingUser } = await adminClient.auth.admin.listUsers();
+    if (existingUser?.users.some(u => u.email?.toLowerCase() === email)) {
+      return new Response(JSON.stringify({ error: 'Este email ja esta cadastrado no sistema.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if there's already a pending invitation for this email
+    const { data: existingInvite } = await adminClient
+      .from('invitations')
+      .select('id')
+      .eq('email', email)
+      .is('accepted_at', null)
+      .maybeSingle();
+
+    if (existingInvite) {
+      return new Response(JSON.stringify({ error: 'Ja existe um convite pendente para este email.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Generate secure token
+    const { data: tokenData, error: tokenError } = await adminClient.rpc('generate_invitation_token');
+    if (tokenError) throw tokenError;
+
+    const token = tokenData as string;
+
+    // Create invitation
+    const { data: invitation, error: inviteError } = await adminClient
+      .from('invitations')
+      .insert({
+        token,
+        email,
         nome,
-        must_change_password: true,
+        telefone: telefone ? (telefone.startsWith('55') ? telefone : `55${telefone}`) : null,
+        invited_by: requesterData.user.id,
+      })
+      .select()
+      .single();
+
+    if (inviteError) throw inviteError;
+
+    // Build invitation URL
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://harmonic.igrejaabrace.com.br';
+    const inviteUrl = `${siteUrl}/aceitar-convite?token=${token}`;
+
+    return new Response(JSON.stringify({
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        nome: invitation.nome,
+        telefone: invitation.telefone,
+        expires_at: invitation.expires_at,
       },
-    });
-
-    if (error) throw error;
-
-    await adminClient
-      .from('profiles')
-      .update({ nome, must_change_password: true })
-      .eq('id', data.user.id);
-
-    return new Response(JSON.stringify({ user: data.user, temporaryPassword: DEFAULT_PASSWORD }), {
+      inviteUrl,
+      token,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro ao criar usuario.';
+    const message = error instanceof Error ? error.message : 'Erro ao criar convite.';
     return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

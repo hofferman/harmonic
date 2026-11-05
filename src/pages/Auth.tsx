@@ -42,7 +42,7 @@ export default function Auth() {
         message = 'Email ou senha incorretos';
       }
       if (error.message === 'Email not confirmed') {
-        message = 'Email não confirmado. Confirme este usuário no painel do Supabase ou publique a função admin-create-user para criar usuários já confirmados.';
+        message = 'Email não confirmado. Entre em contato com um administrador.';
       }
       toast({
         title: 'Erro ao entrar',

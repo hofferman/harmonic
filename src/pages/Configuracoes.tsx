@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
+import { criarConvite, telefoneConviteValido } from '@/lib/convite';
 import {
   Settings,
   UserPlus,
@@ -47,7 +48,6 @@ interface UsuarioConfig {
   setores: Setor[];
 }
 
-const SENHA_PADRAO = 'Mudar@123';
 const MINISTERIOS_FALLBACK: Setor[] = [
   { id: 'louvor', nome: 'Louvor' },
   { id: 'farol', nome: 'Farol' },
@@ -65,6 +65,7 @@ export default function Configuracoes() {
   const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(true);
   const [newUserNome, setNewUserNome] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserTelefone, setNewUserTelefone] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [novoSetorNome, setNovoSetorNome] = useState('');
   const [isCreatingSetor, setIsCreatingSetor] = useState(false);
@@ -168,11 +169,21 @@ export default function Configuracoes() {
   const handleCreateUser = async () => {
     const nome = newUserNome.trim();
     const email = newUserEmail.trim().toLowerCase();
+    const telefone = newUserTelefone.replace(/\D/g, '');
 
-    if (!nome || !email) {
+    if (!nome || !email || !telefone) {
       toast({
         title: 'Preencha os dados',
-        description: 'Nome e email são obrigatórios.',
+        description: 'Nome, email e WhatsApp são obrigatórios.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!telefoneConviteValido(telefone)) {
+      toast({
+        title: 'WhatsApp inválido',
+        description: 'Use DDD + número, ex: (11) 98765-4321.',
         variant: 'destructive',
       });
       return;
@@ -180,27 +191,26 @@ export default function Configuracoes() {
 
     setIsCreatingUser(true);
     try {
-      const { error } = await supabase.functions.invoke('admin-create-user', {
-        body: { nome, email },
-      });
+      const resultado = await criarConvite({ nome, email, telefone });
 
-      if (error) throw error;
-
-      toast({
-        title: 'Usuário criado!',
-        description: `Senha temporária: ${SENHA_PADRAO}. O usuário deverá trocar no primeiro login.`,
-      });
+      if (resultado.whatsappEnviado) {
+        toast({ title: 'Convite enviado pelo WhatsApp!' });
+      } else {
+        toast({
+          title: 'Convite criado, mas o WhatsApp não foi enviado',
+          description: `${resultado.erroWhatsapp ?? ''} Link: ${resultado.inviteUrl}`,
+          variant: 'destructive',
+        });
+      }
       setNewUserNome('');
       setNewUserEmail('');
+      setNewUserTelefone('');
       clearPageCache('membros');
       fetchUsuarios();
     } catch (error: any) {
       toast({
-        title: 'Erro ao criar usuário',
-        description:
-          error.message === 'Failed to send a request to the Edge Function'
-            ? 'A função admin-create-user ainda não está publicada no Supabase. Publique a Edge Function para criar usuários já confirmados.'
-            : error.message,
+        title: 'Erro ao criar convite',
+        description: error.message,
         variant: 'destructive',
       });
     } finally {
@@ -518,11 +528,11 @@ export default function Configuracoes() {
                     Criar acesso
                   </CardTitle>
                   <CardDescription>
-                    Cadastre uma pessoa e entregue a senha temporária para o primeiro login.
+                    Cadastre uma pessoa. Ela recebe um convite pelo WhatsApp e cria a própria senha.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="nome-usuario">Nome completo</Label>
                       <Input
@@ -542,20 +552,21 @@ export default function Configuracoes() {
                         onChange={(e) => setNewUserEmail(e.target.value)}
                       />
                     </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 rounded-xl border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                    <span>
-                      Senha inicial: <span className="font-medium text-foreground">{SENHA_PADRAO}</span>
-                    </span>
-                    <Badge variant="outline" className="w-fit bg-background">
-                      Troca obrigatória no primeiro login
-                    </Badge>
+                    <div className="space-y-2">
+                      <Label htmlFor="telefone-usuario">WhatsApp</Label>
+                      <Input
+                        id="telefone-usuario"
+                        type="tel"
+                        placeholder="(11) 98765-4321"
+                        value={newUserTelefone}
+                        onChange={(e) => setNewUserTelefone(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <Button className="w-full sm:w-auto" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
                     {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                    Criar usuário
+                    Criar e enviar convite
                   </Button>
                 </CardContent>
               </Card>
