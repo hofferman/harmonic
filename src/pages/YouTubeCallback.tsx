@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useYouTube } from '@/hooks/useYouTube';
+import { useYouTube, YOUTUBE_STATE_KEY } from '@/hooks/useYouTube';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,16 @@ export default function YouTubeCallback() {
         ? 'Acesso negado. Você cancelou a autorização.'
         : `Erro do Google: ${errorParam}`
       );
+      return;
+    }
+
+    // CSRF: o state precisa ser o que o Harmonic gerou antes do redirect.
+    const stateRecebido = searchParams.get('state');
+    const stateEsperado = sessionStorage.getItem(YOUTUBE_STATE_KEY);
+    sessionStorage.removeItem(YOUTUBE_STATE_KEY);
+    if (!stateRecebido || !stateEsperado || stateRecebido !== stateEsperado) {
+      setStatus('error');
+      setError('Autorização inválida ou expirada. Tente conectar o YouTube de novo.');
       return;
     }
 

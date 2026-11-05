@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,7 +25,8 @@ interface YouTubeSearchResult {
 
 // Refresh Google access token if expired
 async function refreshAccessToken(
-  adminClient: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipo genérico do cliente Supabase
+  adminClient: SupabaseClient<any, any, any>,
   token: YouTubeToken,
   clientId: string,
   clientSecret: string
@@ -312,6 +313,19 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Sincronizar escreve no canal da igreja e em escala_playlists (RLS: só admin escreve).
+    const { data: isAdmin, error: roleError } = await adminClient.rpc('has_role', {
+      _user_id: userData.user.id,
+      _role: 'admin',
+    });
+    if (roleError) throw roleError;
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: 'Apenas admins podem sincronizar playlists do YouTube.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body = await req.json();
     const { escala_id } = body;
 
@@ -395,18 +409,21 @@ Deno.serve(async (req) => {
     const notFound: string[] = [];
 
     for (const item of escalaMusicas || []) {
-      if (!item.musica) continue;
+      // PostgREST devolve objeto para FK many-to-one; o tipo inferido é array. Normaliza.
+      const musica = (Array.isArray(item.musica) ? item.musica[0] : item.musica) as
+        { titulo: string; artista: string | null } | null | undefined;
+      if (!musica) continue;
 
       const video = await searchVideo(
         accessToken,
-        item.musica.titulo,
-        item.musica.artista
+        musica.titulo,
+        musica.artista
       );
 
       if (video) {
         videoIds.push(video.videoId);
       } else {
-        notFound.push(`${item.musica.titulo}${item.musica.artista ? ` - ${item.musica.artista}` : ''}`);
+        notFound.push(`${musica.titulo}${musica.artista ? ` - ${musica.artista}` : ''}`);
       }
     }
 

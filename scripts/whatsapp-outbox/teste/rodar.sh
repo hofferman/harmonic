@@ -16,7 +16,9 @@ $PSQL -d harm -v ON_ERROR_STOP=1 -qf "$REPO/supabase/migrations/20261104000000_a
 $PSQL -d harm -v ON_ERROR_STOP=1 -qf "$REPO/supabase/migrations/20261104010000_add_whatsapp_outbox.sql"
 $PSQL -d harm -v ON_ERROR_STOP=1 -qf "$REPO/supabase/migrations/20261104020000_profiles_telefone_admin.sql"
 $PSQL -d harm -v ON_ERROR_STOP=1 -qf "$REPO/supabase/migrations/20261104030000_profiles_receber_avisos_grant.sql"
+$PSQL -d harm -v ON_ERROR_STOP=1 -qf "$REPO/supabase/migrations/20261104110000_add_youtube_tokens.sql"
 $PSQL -d harm -f "$HERE/02_rls_grants.sql"
+$PSQL -d harm -f "$HERE/04_youtube_tokens.sql"
 $PSQL -d harm -v ON_ERROR_STOP=1 -f "$HERE/03_validate_invitation.sql" >/dev/null
 
 # Servidor fake da Evolution: responde 500 para números que terminam em 0000.
