@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizarTelefoneConvite } from '@/lib/convite';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Trash2, Shield, Music, Pencil, Check, X, Loader2, Phone, BellOff, Search, Settings } from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
@@ -42,14 +43,6 @@ interface Membro {
 // Guarda so digitos no formato internacional (55 + DDD + numero), que e o
 // que a Evolution API espera. A tela aceita o numero digitado de qualquer
 // jeito e normaliza aqui.
-const normalizarTelefone = (bruto: string): string | null => {
-  const d = (bruto || '').replace(/\D/g, '');
-  if (!d) return null;
-  const comPais = d.startsWith('55') ? d : `55${d}`;
-  // 55 + DDD (2) + numero (8 ou 9)
-  return /^55[1-9][0-9]{9,10}$/.test(comPais) ? comPais : null;
-};
-
 const formatarTelefone = (tel?: string | null): string => {
   if (!tel) return '';
   const d = tel.replace(/\D/g, '').replace(/^55/, '');
@@ -250,7 +243,7 @@ export default function Membros() {
     const bruto = editingTelefone.trim();
 
     // campo vazio remove o telefone (a pessoa deixa de receber aviso)
-    const valor = bruto === '' ? null : normalizarTelefone(bruto);
+    const valor = bruto === '' ? null : normalizarTelefoneConvite(bruto);
     if (bruto !== '' && valor === null) {
       toast({
         title: 'Telefone inválido',
@@ -262,12 +255,17 @@ export default function Membros() {
 
     setIsSavingTelefone(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ telefone: valor })
-        .eq('id', selectedMembro.id);
+        .eq('id', selectedMembro.id)
+        .select('id');
 
       if (error) throw error;
+      // RLS bloqueia em silêncio: sem linha afetada, não foi salvo.
+      if (!data || data.length === 0) {
+        throw new Error('Não foi possível salvar o WhatsApp. Verifique suas permissões.');
+      }
 
       toast({ title: valor ? 'Telefone salvo!' : 'Telefone removido.' });
       clearPageCache('membros');
@@ -539,7 +537,7 @@ export default function Membros() {
                   {filteredMembros.length} membro{filteredMembros.length !== 1 ? 's' : ''}
                 </CardTitle>
                 <CardDescription>
-                  Clique em um membro para editar seus dados e funções
+                  Clique em um membro para editar nome, WhatsApp, funções e ministérios
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 divide-y">
@@ -590,6 +588,16 @@ export default function Membros() {
                             <Badge variant="outline">+{membro.funcoes.length - 3}</Badge>
                           )}
                         </div>
+
+                        {/* WhatsApp: visível no card. Clique no card abre a edição do número. */}
+                        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {membro.telefone ? (
+                            <span>{formatarTelefone(membro.telefone)}</span>
+                          ) : (
+                            <span className="italic text-primary">Adicionar WhatsApp</span>
+                          )}
+                        </p>
                       </div>
                       
                       <Pencil className="h-4 w-4 text-muted-foreground" />

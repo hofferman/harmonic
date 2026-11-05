@@ -25,22 +25,16 @@ CREATE INDEX invitations_pending_idx ON public.invitations (created_at DESC) WHE
 -- RLS policies
 ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
 
+-- Privilégios: o Supabase concede ALL a authenticated por padrão (inclui TRUNCATE, que RLS não bloqueia).
+-- Só SELECT e DELETE; a criação é só pela Edge Function (service_role), com normalização e checagens.
+REVOKE ALL ON public.invitations FROM anon, authenticated;
+GRANT SELECT, DELETE ON public.invitations TO authenticated;
+
 -- Admins can read all invitations
 CREATE POLICY "Admins can read invitations"
   ON public.invitations FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Admins can create invitations
-CREATE POLICY "Admins can create invitations"
-  ON public.invitations FOR INSERT
-  TO authenticated
-  WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid() AND role = 'admin'
@@ -70,7 +64,7 @@ BEGIN
 END;
 $$;
 
--- Function to validate invitation (used by Edge Function)
+-- Function to validate invitation (chamada pela tela /aceitar-convite, antes do login)
 CREATE OR REPLACE FUNCTION public.validate_invitation(p_token TEXT)
 RETURNS TABLE (
   invitation_id UUID,
@@ -113,7 +107,8 @@ BEGIN
   END IF;
   
   -- Check if email already registered
-  IF EXISTS (SELECT 1 FROM auth.users WHERE email = v_inv.email) THEN
+  -- Alias obrigatório: sem ele, "email" conflita com a coluna de RETURNS TABLE (erro em runtime).
+  IF EXISTS (SELECT 1 FROM auth.users au WHERE au.email = v_inv.email) THEN
     RETURN QUERY SELECT 
       v_inv.id, v_inv.email, v_inv.nome, v_inv.telefone,
       FALSE, 'Email já cadastrado no sistema'::TEXT;
@@ -126,9 +121,16 @@ BEGIN
 END;
 $$;
 
--- Grant execute to service role for Edge Functions
+-- Permissões: PostgreSQL concede EXECUTE a PUBLIC por padrão, e o Supabase concede a anon
+-- e authenticated. Revoga antes de liberar.
+-- generate_invitation_token: só a Edge Function (service_role) gera tokens.
+REVOKE ALL ON FUNCTION public.generate_invitation_token() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.generate_invitation_token() TO service_role;
-GRANT EXECUTE ON FUNCTION public.validate_invitation(TEXT) TO service_role;
+
+-- validate_invitation: chamada pela tela /aceitar-convite antes do login (anon).
+-- Só devolve dados para quem tem o token (256 bits).
+REVOKE ALL ON FUNCTION public.validate_invitation(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.validate_invitation(TEXT) TO anon, authenticated, service_role;
 
 COMMENT ON TABLE public.invitations IS 'Convites para novos usuários enviados por WhatsApp';
 COMMENT ON COLUMN public.invitations.token IS 'Token único e seguro para aceitar o convite';

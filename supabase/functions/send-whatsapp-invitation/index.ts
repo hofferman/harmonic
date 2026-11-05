@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Esta função não fala com a Evolution API: a Evolution só escuta em loopback no VPS,
+// e a Edge Function roda em container. Ela grava na fila whatsapp_outbox, e o script
+// no host (scripts/whatsapp-outbox/enviar_fila.py) envia.
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -13,9 +16,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL') || 'http://127.0.0.1:8080';
-    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
-    const evolutionInstance = Deno.env.get('EVOLUTION_INSTANCE') || 'harmonic';
 
     if (!supabaseUrl || !serviceRoleKey) {
       throw new Error('Variaveis SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY sao obrigatorias.');
@@ -87,22 +87,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!evolutionApiKey) {
-      return new Response(JSON.stringify({ 
-        error: 'Evolution API nao configurada. Configure EVOLUTION_API_KEY.',
-        code: 'EVOLUTION_NOT_CONFIGURED',
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     // Build invitation URL
     const siteUrl = Deno.env.get('SITE_URL') || 'https://harmonic.igrejaabrace.com.br';
     const inviteUrl = `${siteUrl}/aceitar-convite?token=${invitation.token}`;
 
-    // Format message
-    const message = `🎵 *Convite para o Harmonic*
+    const texto = `🎵 *Convite para o Harmonic*
 
 Olá, ${invitation.nome}!
 
@@ -113,43 +102,36 @@ ${inviteUrl}
 
 _Este convite expira em 7 dias._
 
-Dúvidas? Entre em contato com a equipe de louvor.`;
+Dúvidas? Entre em contato com a equipe de louvor.
 
-    // Send via Evolution API
-    const evolutionResponse = await fetch(
-      `${evolutionApiUrl}/message/sendText/${evolutionInstance}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': evolutionApiKey,
-        },
-        body: JSON.stringify({
-          number: invitation.telefone,
-          text: message,
-        }),
-      }
-    );
+_Mensagem automática — não é necessário responder._`;
 
-    if (!evolutionResponse.ok) {
-      const errorText = await evolutionResponse.text();
-      console.error('Evolution API error:', evolutionResponse.status, errorText);
-      return new Response(JSON.stringify({ 
-        error: 'Falha ao enviar WhatsApp. Verifique se a instancia esta conectada.',
-        details: errorText,
-        code: 'WHATSAPP_SEND_FAILED',
+    const { data: fila, error: filaError } = await adminClient
+      .from('whatsapp_outbox')
+      .insert({
+        destino: invitation.telefone,
+        mensagem: texto,
+        created_by: requesterData.user.id,
+      })
+      .select('id')
+      .single();
+
+    if (filaError) {
+      console.error('whatsapp_outbox insert error:', filaError);
+      return new Response(JSON.stringify({
+        error: 'Nao foi possivel colocar o WhatsApp na fila de envio.',
+        code: 'WHATSAPP_QUEUE_FAILED',
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const evolutionResult = await evolutionResponse.json();
-
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: true,
-      message: 'Convite enviado por WhatsApp!',
-      whatsappResponse: evolutionResult,
+      queued: true,
+      outboxId: fila.id,
+      message: 'Convite na fila para envio por WhatsApp.',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

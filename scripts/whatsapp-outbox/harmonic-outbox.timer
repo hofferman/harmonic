@@ -1,0 +1,10 @@
+[Unit]
+Description=Roda o envio da fila de WhatsApp do Harmonic a cada minuto
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

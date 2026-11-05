@@ -39,11 +39,20 @@ Deno.serve(async (req) => {
     }
 
     // Validate invitation using database function
-    const { data: validation, error: validationError } = await adminClient
+    const { data: validationRaw, error: validationError } = await adminClient
       .rpc('validate_invitation', { p_token: token })
       .single();
 
     if (validationError) throw validationError;
+
+    const validation = validationRaw as {
+      invitation_id: string;
+      email: string;
+      nome: string;
+      telefone: string | null;
+      is_valid: boolean;
+      reason: string | null;
+    };
 
     if (!validation.is_valid) {
       return new Response(JSON.stringify({ 

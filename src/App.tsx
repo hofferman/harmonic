@@ -18,7 +18,6 @@ import OrdensCulto from "./pages/OrdensCulto";
 import OrdemCultoEditor from "./pages/OrdemCultoEditor";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
-import SpotifyCallback from "./pages/SpotifyCallback";
 import YouTubeCallback from "./pages/YouTubeCallback";
 
 const queryClient = new QueryClient({
@@ -53,7 +52,6 @@ const App = () => (
                 <Route path="/configuracoes" element={<Configuracoes />} />
                 <Route path="/ordens-culto" element={<OrdensCulto />} />
                 <Route path="/ordens-culto/:id" element={<OrdemCultoEditor />} />
-                <Route path="/callback/spotify" element={<SpotifyCallback />} />
                 <Route path="/callback/youtube" element={<YouTubeCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

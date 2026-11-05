@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
 import InvitationManagement from '@/components/admin/InvitationManagement';
-import SpotifySettings from '@/components/spotify/SpotifySettings';
 import YouTubeSettings from '@/components/youtube/YouTubeSettings';
 import {
   Settings,
@@ -655,10 +654,9 @@ export default function Configuracoes() {
             </div>
           </TabsContent>
 
-          {/* Tab: Integrações (Spotify, YouTube) */}
+          {/* Tab: Integrações (YouTube) */}
           <TabsContent value="integracoes" className="mt-0">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <SpotifySettings />
+            <div className="grid gap-5">
               <YouTubeSettings />
             </div>
           </TabsContent>

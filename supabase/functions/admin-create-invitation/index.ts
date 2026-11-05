@@ -1,4 +1,32 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+
+// Formato internacional 55 + DDD + número (12 ou 13 dígitos).
+// 10–11 dígitos = DDD + número, sem código do país: prefixa 55.
+// 12–13 dígitos já começando com 55 = código do país informado.
+// Ambíguo só quando o DDD é 55 (RS): 55999998888 vira 5555999998888.
+const normalizarTelefone = (bruto: string): string | null => {
+  const d = bruto.replace(/\D/g, '');
+  let comPais: string | null = null;
+  if (d.length === 10 || d.length === 11) comPais = `55${d}`;
+  else if ((d.length === 12 || d.length === 13) && d.startsWith('55')) comPais = d;
+  if (!comPais) return null;
+  return /^55[1-9][0-9]([0-9]{8}|[0-9]{9})$/.test(comPais) ? comPais : null;
+};
+
+// Percorre todas as páginas de usuários (listUsers devolve no máximo perPage por chamada).
+const emailJaCadastrado = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- o tipo genérico do cliente Supabase muda com o schema; any evita acoplar
+  admin: SupabaseClient<any, any, any>,
+  email: string,
+): Promise<boolean> => {
+  const perPage = 1000;
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    if (data.users.some((u) => u.email?.toLowerCase() === email)) return true;
+    if (data.users.length < perPage) return false;
+  }
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +83,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const nome = String(body.nome ?? '').trim();
     const email = String(body.email ?? '').trim().toLowerCase();
-    const telefone = body.telefone ? String(body.telefone).replace(/\D/g, '') : null;
+    const telefone = normalizarTelefone(String(body.telefone ?? ''));
 
     if (!nome || !email) {
       return new Response(JSON.stringify({ error: 'Nome e email sao obrigatorios.' }), {
@@ -64,9 +92,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if email already registered
-    const { data: existingUser } = await adminClient.auth.admin.listUsers();
-    if (existingUser?.users.some(u => u.email?.toLowerCase() === email)) {
+    if (!telefone) {
+      return new Response(JSON.stringify({ error: 'WhatsApp invalido. Use DDD + numero, ex: (11) 98765-4321.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if email already registered (percorre todas as páginas)
+    if (await emailJaCadastrado(adminClient, email)) {
       return new Response(JSON.stringify({ error: 'Este email ja esta cadastrado no sistema.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -88,10 +122,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate secure token directly (crypto API available in Deno)
-    const tokenBytes = new Uint8Array(32);
-    crypto.getRandomValues(tokenBytes);
-    const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    // Generate secure token
+    const { data: tokenData, error: tokenError } = await adminClient.rpc('generate_invitation_token');
+    if (tokenError) throw tokenError;
+
+    const token = tokenData as string;
 
     // Create invitation
     const { data: invitation, error: inviteError } = await adminClient
@@ -100,7 +135,7 @@ Deno.serve(async (req) => {
         token,
         email,
         nome,
-        telefone: telefone ? (telefone.startsWith('55') ? telefone : `55${telefone}`) : null,
+        telefone,
         invited_by: requesterData.user.id,
       })
       .select()

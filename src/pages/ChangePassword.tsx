@@ -91,7 +91,7 @@ export default function ChangePassword() {
           </div>
           <CardTitle className="text-2xl font-serif leading-tight">Crie uma nova senha</CardTitle>
           <CardDescription>
-            Sua conta foi criada com a senha temporária Mudar@123. Defina uma senha nova para continuar.
+            Por segurança, defina uma senha nova para continuar.
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">

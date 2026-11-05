@@ -17,6 +17,9 @@ interface SyncResult {
   needsAuth?: boolean;
 }
 
+// Chave do state do OAuth (proteção CSRF): guardado antes do redirect e conferido no callback.
+export const YOUTUBE_STATE_KEY = 'youtube_oauth_state';
+
 export function useYouTube() {
   const { session, isAdmin } = useAuth();
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -77,6 +80,7 @@ export function useYouTube() {
         return { error: data.error || 'Erro ao iniciar autenticação' };
       }
 
+      if (data.state) sessionStorage.setItem(YOUTUBE_STATE_KEY, data.state);
       return { authUrl: data.authUrl };
     } catch (err) {
       return { error: 'Erro de conexão ao iniciar autenticação' };

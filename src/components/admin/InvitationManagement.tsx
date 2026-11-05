@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { normalizarTelefoneConvite } from '@/lib/convite';
 import {
   Mail,
   Phone,
@@ -35,14 +36,6 @@ interface Invitation {
   accepted_at: string | null;
   token: string;
 }
-
-// Normaliza telefone para formato internacional 55DDDNNNNNNNNN
-const normalizarTelefone = (bruto: string): string | null => {
-  const d = (bruto || '').replace(/\D/g, '');
-  if (!d) return null;
-  const comPais = d.startsWith('55') ? d : `55${d}`;
-  return /^55[1-9][0-9]{9,10}$/.test(comPais) ? comPais : null;
-};
 
 const formatarTelefone = (tel?: string | null): string => {
   if (!tel) return '';
@@ -105,21 +98,21 @@ export default function InvitationManagement() {
   const handleCreateInvitation = async () => {
     const nome = newNome.trim();
     const email = newEmail.trim().toLowerCase();
-    const telefone = newTelefone.trim();
+    // WhatsApp é obrigatório: o convite só é entregue por WhatsApp.
+    const telefone = normalizarTelefoneConvite(newTelefone);
 
-    if (!nome || !email) {
+    if (!nome || !email || !newTelefone.trim()) {
       toast({
         title: 'Preencha os dados',
-        description: 'Nome e email são obrigatórios.',
+        description: 'Nome, email e WhatsApp são obrigatórios.',
         variant: 'destructive',
       });
       return;
     }
 
-    // Validate telefone if provided
-    if (telefone && !normalizarTelefone(telefone)) {
+    if (!telefone) {
       toast({
-        title: 'Telefone inválido',
+        title: 'WhatsApp inválido',
         description: 'Use DDD + número, ex: (11) 98765-4321.',
         variant: 'destructive',
       });
@@ -129,7 +122,7 @@ export default function InvitationManagement() {
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-create-invitation', {
-        body: { nome, email, telefone: telefone || null },
+        body: { nome, email, telefone },
       });
 
       if (error) throw error;
@@ -199,27 +192,19 @@ export default function InvitationManagement() {
 
       if (error) throw error;
 
-      if (data.error) {
-        // Check for Evolution not configured
-        if (data.code === 'EVOLUTION_NOT_CONFIGURED') {
-          toast({
-            title: 'WhatsApp não configurado',
-            description: 'Configure a Evolution API nas variáveis de ambiente.',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Erro ao enviar',
-            description: data.error,
-            variant: 'destructive',
-          });
-        }
+      if (data?.error) {
+        toast({
+          title: 'Erro ao enviar',
+          description: data.error,
+          variant: 'destructive',
+        });
         return;
       }
 
+      // A mensagem entra na fila; o script no host envia pela Evolution.
       toast({
-        title: 'WhatsApp enviado!',
-        description: `Convite enviado para ${formatarTelefone(invitation.telefone)}`,
+        title: 'Convite na fila para envio',
+        description: `Será enviado para ${formatarTelefone(invitation.telefone)} em até 1 minuto.`,
       });
     } catch (error: any) {
       console.error('Error sending WhatsApp:', error);
@@ -533,7 +518,7 @@ export default function InvitationManagement() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="invite-telefone">
-                  WhatsApp <span className="text-muted-foreground">(opcional)</span>
+                  WhatsApp
                 </Label>
                 <Input
                   id="invite-telefone"
