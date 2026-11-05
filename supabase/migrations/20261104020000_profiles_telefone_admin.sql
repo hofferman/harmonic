@@ -21,3 +21,11 @@ CREATE POLICY "Admins can update profiles"
       WHERE user_id = auth.uid() AND role = 'admin'
     )
   );
+
+-- Privilégios: o default do Supabase dá ALL a anon e authenticated, incluindo TRUNCATE
+-- (que RLS não bloqueia) e UPDATE em todas as colunas. O app só escreve nome, telefone
+-- e must_change_password (Membros.tsx e ChangePassword.tsx). Libera só isso.
+REVOKE ALL ON public.profiles FROM anon, authenticated;
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT INSERT ON public.profiles TO authenticated;
+GRANT UPDATE (nome, telefone, must_change_password) ON public.profiles TO authenticated;

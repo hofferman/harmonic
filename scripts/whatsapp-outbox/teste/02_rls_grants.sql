@@ -80,3 +80,18 @@ UPDATE public.profiles SET telefone = '5511977776666' WHERE id = '00000000-0000-
 RESET ROLE;
 \echo --- T: valor gravado (esperado: membro com 5511977776666, admin com NULL)
 SELECT nome, telefone FROM public.profiles ORDER BY nome;
+\echo --- U: membro TRUNCATE profiles (esperado: negado)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+TRUNCATE public.profiles;
+RESET ROLE;
+\echo --- V: membro altera a própria coluna id (esperado: negado, coluna sem GRANT)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+UPDATE public.profiles SET id = '00000000-0000-0000-0000-00000000cccc' WHERE id = '00000000-0000-0000-0000-00000000bbbb';
+RESET ROLE;
+\echo --- W: anon lê profiles (esperado: negado)
+SET ROLE anon; SELECT count(*) FROM public.profiles;
+RESET ROLE;
+\echo --- X: membro troca must_change_password de si (esperado: UPDATE 1, coluna com GRANT)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+UPDATE public.profiles SET must_change_password = false WHERE id = '00000000-0000-0000-0000-00000000bbbb';
+RESET ROLE;

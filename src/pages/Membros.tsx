@@ -327,12 +327,17 @@ export default function Membros() {
     }
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update({ telefone: valor })
-        .eq('id', membroId);
+        .eq('id', membroId)
+        .select('id');
 
       if (error) throw error;
+      // RLS bloqueia em silêncio: sem linha afetada, não foi salvo.
+      if (!data || data.length === 0) {
+        throw new Error('Não foi possível salvar o WhatsApp. Verifique suas permissões.');
+      }
 
       toast({ title: valor ? 'WhatsApp salvo!' : 'WhatsApp removido.' });
       setEditingTelId(null);
