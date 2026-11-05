@@ -5,24 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Music2, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, profile, signIn, signUp } = useAuth();
+  const { user, profile, signIn } = useAuth();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [signupEmail, setSignupEmail] = useState('');
-  const [signupPassword, setSignupPassword] = useState('');
-  const [signupNome, setSignupNome] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
 
   useEffect(() => {
     if (user && profile) {
@@ -59,57 +54,11 @@ export default function Auth() {
     setIsLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!signupNome.trim()) {
-      toast({
-        title: 'Erro',
-        description: 'Por favor, insira seu nome.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (signupPassword.length < 6) {
-      toast({
-        title: 'Erro',
-        description: 'A senha deve ter pelo menos 6 caracteres.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
-    const { error } = await signUp(signupEmail, signupPassword, signupNome);
-    
-    if (error) {
-      let message = error.message;
-      if (error.message.includes('already registered')) {
-        message = 'Este email já está cadastrado. Tente fazer login.';
-      }
-      toast({
-        title: 'Erro ao cadastrar',
-        description: message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Conta criada!',
-        description: 'Seu cadastro foi realizado com sucesso.',
-      });
-      navigate('/escalas');
-    }
-    
-    setIsLoading(false);
-  };
-
   const handlePasswordReset = async () => {
     if (!loginEmail.trim()) {
       toast({
         title: 'Informe seu email',
-        description: 'Digite seu email acima e toque novamente em “Esqueci minha senha”.',
+        description: 'Digite seu email acima e toque novamente em "Esqueci minha senha".',
         variant: 'destructive',
       });
       return;
@@ -151,150 +100,75 @@ export default function Auth() {
               Acesse sua conta
             </CardTitle>
             <CardDescription>
-              Entre com seu email ou crie uma nova conta
+              Entre com seu email e senha
             </CardDescription>
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="mb-6 grid h-11 w-full grid-cols-2 rounded-lg bg-background/80">
-                <TabsTrigger value="login">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                      className="h-11 bg-background/80"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Senha</Label>
-                    <div className="relative">
-                      <Input
-                        id="login-password"
-                        type={showLoginPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        className="bg-background/80 pr-12"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-11 w-11"
-                        onClick={() => setShowLoginPassword(!showLoginPassword)}
-                        aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                      >
-                        {showLoginPassword ? <EyeOff /> : <Eye />}
-                      </Button>
-                    </div>
-                  </div>
-                  <Button type="button" variant="link" className="-mt-2 h-auto px-0 text-base" onClick={handlePasswordReset} disabled={isLoading}>
-                    Esqueci minha senha
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    variant="gradient"
-                    size="lg"
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="login-email">Email</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="h-11 bg-background/80"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="login-password">Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showLoginPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
                     disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="animate-spin" />
-                        Entrando...
-                      </>
-                    ) : (
-                      'Entrar'
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-nome">Nome completo</Label>
-                    <Input
-                      id="signup-nome"
-                      type="text"
-                      placeholder="Seu nome"
-                      value={signupNome}
-                      onChange={(e) => setSignupNome(e.target.value)}
-                      required
-                      disabled={isLoading}
-                      className="h-11 bg-background/80"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required
-                      disabled={isLoading}
-                      className="h-11 bg-background/80"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Senha</Label>
-                    <div className="relative">
-                      <Input
-                        id="signup-password"
-                        type={showSignupPassword ? 'text' : 'password'}
-                        placeholder="Mínimo 6 caracteres"
-                        value={signupPassword}
-                        onChange={(e) => setSignupPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                        className="bg-background/80 pr-12"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-11 w-11"
-                        onClick={() => setShowSignupPassword(!showSignupPassword)}
-                        aria-label={showSignupPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                      >
-                        {showSignupPassword ? <EyeOff /> : <Eye />}
-                      </Button>
-                    </div>
-                  </div>
+                    className="bg-background/80 pr-12"
+                  />
                   <Button
-                    type="submit"
-                    className="w-full"
-                    variant="gradient"
-                    size="lg"
-                    disabled={isLoading}
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-11 w-11"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
                   >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="animate-spin" />
-                        Cadastrando...
-                      </>
-                    ) : (
-                      'Criar conta'
-                    )}
+                    {showLoginPassword ? <EyeOff /> : <Eye />}
                   </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+                </div>
+              </div>
+              <Button type="button" variant="link" className="-mt-2 h-auto px-0 text-base" onClick={handlePasswordReset} disabled={isLoading}>
+                Esqueci minha senha
+              </Button>
+              <Button
+                type="submit"
+                className="w-full"
+                variant="gradient"
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Entrando...
+                  </>
+                ) : (
+                  'Entrar'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 rounded-lg border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
+              <p>
+                Não tem uma conta? Fale com um administrador para receber um convite.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -25,7 +25,6 @@ interface AuthContextType {
   isAdmin: boolean;
   canViewOrdensCulto: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
 }
@@ -139,20 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string, nome: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: { nome },
-      },
-    });
-    return { error };
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -170,7 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: role === 'admin',
     canViewOrdensCulto: role === 'admin' || permissions.canViewOrdemCulto,
     signIn,
-    signUp,
     signOut,
     refreshUserData,
   };

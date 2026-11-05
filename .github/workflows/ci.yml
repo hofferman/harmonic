@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancela execucoes antigas do mesmo PR quando chega commit novo.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build e verificacoes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Lint e typecheck ainda nao passam no codigo legado (57 problemas de
+      # lint, 2 erros de tipo em Dashboard.tsx e Escalas.tsx). Ficam como
+      # aviso ate a divida ser paga; depois trocar para bloqueante.
+      - name: Lint (aviso)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Checagem de tipos (aviso)
+        run: npx tsc --noEmit -p tsconfig.app.json
+        continue-on-error: true
+
+      # Este e o portao de verdade: build quebrado nao entra na main.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://exemplo.invalido
+          VITE_SUPABASE_PUBLISHABLE_KEY: chave-ficticia-para-build
+          VITE_SUPABASE_PROJECT_ID: ci
+
+      - name: Conferir artefato
+        run: |
+          test -f dist/index.html || { echo "dist/index.html nao foi gerado"; exit 1; }
+          echo "tamanho do bundle:"
+          du -sh dist
+
+  seguranca:
+    name: Segredos e dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Barreira contra o erro mais caro: subir .env ou chave de servico.
+      - name: Procurar segredos no diff
+        run: |
+          set -u
+          # Procura VALOR de segredo, nao a mencao ao nome da variavel:
+          # 'Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")' e uso correto.
+          PADROES='(service_role|SERVICE_ROLE_KEY|JWT_SECRET|POSTGRES_PASSWORD)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9+/_.=-]{16,}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|sbp_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch -q origin "${{ github.base_ref }}"
+            ALVO=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+          else
+            ALVO=$(git ls-files)
+          fi
+          if [ -z "$ALVO" ]; then echo "nada a verificar"; exit 0; fi
+          ACHOU=0
+          for f in $ALVO; do
+            [ -f "$f" ] || continue
+            case "$f" in
+              .github/workflows/*|*.lockb|package-lock.json|*.svg|*.ico) continue;;
+            esac
+            SAIDA=$(grep -nEI "$PADROES" "$f" 2>/dev/null || true)
+            if [ -n "$SAIDA" ]; then
+              echo "::error file=$f::possivel segredo"
+              echo "$SAIDA" | head -3
+              ACHOU=1
+            fi
+          done
+          if [ "$ACHOU" = "1" ]; then exit 1; fi
+          echo "nenhum segredo encontrado"
+
+      - name: Impedir .env versionado
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env nao pode ser versionado"
+            exit 1
+          fi
+          echo ".env fora do versionamento"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Vulnerabilidades conhecidas (aviso)
+        run: npm audit --audit-level=high
+        continue-on-error: true

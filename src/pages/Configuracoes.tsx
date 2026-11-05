@@ -17,10 +17,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
-import { criarConvite, normalizarTelefoneConvite } from '@/lib/convite';
+import InvitationManagement from '@/components/admin/InvitationManagement';
+import SpotifySettings from '@/components/spotify/SpotifySettings';
+import YouTubeSettings from '@/components/youtube/YouTubeSettings';
 import {
   Settings,
-  UserPlus,
   Users,
   Loader2,
   Plus,
@@ -33,6 +34,9 @@ import {
   UserCog,
   Eye,
   EyeOff,
+  Mail,
+  UserPlus,
+  Music,
 } from 'lucide-react';
 
 interface Setor {
@@ -48,12 +52,6 @@ interface UsuarioConfig {
   setores: Setor[];
 }
 
-const MINISTERIOS_FALLBACK: Setor[] = [
-  { id: 'louvor', nome: 'Louvor' },
-  { id: 'farol', nome: 'Farol' },
-  { id: 'acesso', nome: 'Acesso' },
-];
-
 export default function Configuracoes() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -63,10 +61,6 @@ export default function Configuracoes() {
   const [usuarios, setUsuarios] = useState<UsuarioConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingUsuarios, setIsLoadingUsuarios] = useState(true);
-  const [newUserNome, setNewUserNome] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserTelefone, setNewUserTelefone] = useState('');
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [novoSetorNome, setNovoSetorNome] = useState('');
   const [isCreatingSetor, setIsCreatingSetor] = useState(false);
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
@@ -101,14 +95,14 @@ export default function Configuracoes() {
         .order('nome');
 
       if (error) {
-        setSetores(MINISTERIOS_FALLBACK);
+        setSetores([]);
         return;
       }
 
       setSetores(data || []);
     } catch (error) {
       console.error('Error fetching ministerios:', error);
-      setSetores(MINISTERIOS_FALLBACK);
+      setSetores([]);
     } finally {
       setIsLoading(false);
     }
@@ -163,58 +157,6 @@ export default function Configuracoes() {
       });
     } finally {
       setIsLoadingUsuarios(false);
-    }
-  };
-
-  const handleCreateUser = async () => {
-    const nome = newUserNome.trim();
-    const email = newUserEmail.trim().toLowerCase();
-    const telefone = normalizarTelefoneConvite(newUserTelefone);
-
-    if (!nome || !email || !newUserTelefone.trim()) {
-      toast({
-        title: 'Preencha os dados',
-        description: 'Nome, email e WhatsApp são obrigatórios.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!telefone) {
-      toast({
-        title: 'WhatsApp inválido',
-        description: 'Use DDD + número, ex: (11) 98765-4321.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCreatingUser(true);
-    try {
-      const resultado = await criarConvite({ nome, email, telefone });
-
-      if (resultado.whatsappNaFila) {
-        toast({ title: 'Convite na fila para envio pelo WhatsApp' });
-      } else {
-        toast({
-          title: 'Convite criado, mas não entrou na fila do WhatsApp',
-          description: `${resultado.erroWhatsapp ?? ''} Link: ${resultado.inviteUrl}`,
-          variant: 'destructive',
-        });
-      }
-      setNewUserNome('');
-      setNewUserEmail('');
-      setNewUserTelefone('');
-      clearPageCache('membros');
-      fetchUsuarios();
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao criar convite',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingUser(false);
     }
   };
 
@@ -420,195 +362,137 @@ export default function Configuracoes() {
   return (
     <AppLayout>
       <div className="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:p-4 lg:p-8">
-        <div className="animate-fade-in overflow-hidden rounded-2xl border bg-card shadow-lg">
-          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-            <div className="flex min-w-0 items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Settings className="h-6 w-6" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-primary">Administração</p>
-                <h1 className="mt-1 text-2xl font-bold text-foreground lg:text-3xl">
-                  Configurações do Harmonic
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">
-                  Gerencie acessos, permissões e ministérios em uma área única, com os controles principais sempre à vista.
-                </p>
-              </div>
+        {/* Header compacto */}
+        <div className="animate-fade-in">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Settings className="h-6 w-6" />
             </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
-              <div className="rounded-xl border bg-background px-3 py-3">
-                <p className="text-xs text-muted-foreground">Usuários</p>
-                <p className="mt-1 text-2xl font-semibold">{usuarios.length}</p>
-              </div>
-              <div className="rounded-xl border bg-background px-3 py-3">
-                <p className="text-xs text-muted-foreground">Admins</p>
-                <p className="mt-1 text-2xl font-semibold">{adminCount}</p>
-              </div>
-              <div className="rounded-xl border bg-background px-3 py-3">
-                <p className="text-xs text-muted-foreground">Ministérios</p>
-                <p className="mt-1 text-2xl font-semibold">{setores.length}</p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold text-foreground lg:text-3xl">
+                Configurações
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+                Gerencie acessos, permissões e ministérios
+              </p>
             </div>
           </div>
         </div>
 
-        <Tabs defaultValue="visao" className="animate-slide-up space-y-5">
+        <Tabs defaultValue="convites" className="animate-slide-up space-y-5">
           <div className="overflow-x-auto pb-1">
             <TabsList className="h-auto w-max min-w-full justify-start rounded-xl p-1 sm:w-auto sm:min-w-0">
-              <TabsTrigger value="visao" className="gap-2 rounded-lg px-4 py-2">
-                <Settings className="h-4 w-4" />
-                Visão geral
+              <TabsTrigger value="convites" className="gap-2 rounded-lg px-4 py-2.5">
+                <UserPlus className="h-4 w-4" />
+                Novos usuários
               </TabsTrigger>
-              <TabsTrigger value="usuarios" className="gap-2 rounded-lg px-4 py-2">
+              <TabsTrigger value="usuarios" className="gap-2 rounded-lg px-4 py-2.5">
                 <UserCog className="h-4 w-4" />
-                Usuários
+                Permissões
               </TabsTrigger>
-              <TabsTrigger value="ministerios" className="gap-2 rounded-lg px-4 py-2">
+              <TabsTrigger value="ministerios" className="gap-2 rounded-lg px-4 py-2.5">
                 <Building2 className="h-4 w-4" />
                 Ministérios
+              </TabsTrigger>
+              <TabsTrigger value="integracoes" className="gap-2 rounded-lg px-4 py-2.5">
+                <Music className="h-4 w-4" />
+                Integrações
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="visao" className="mt-0 space-y-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="shadow-md">
-                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
-                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Usuários cadastrados</p>
-                    <p className="mt-2 text-3xl font-semibold">{usuarios.length}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-md">
-                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
-                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                    <Shield className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Administradores</p>
-                    <p className="mt-2 text-3xl font-semibold">{adminCount}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-md">
-                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
-                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                    <ListOrdered className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Acesso à OC</p>
-                    <p className="mt-2 text-3xl font-semibold">{ordemCultoAccessCount}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="shadow-md">
-                <CardContent className="flex min-h-[124px] items-start gap-4 p-5">
-                  <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Sem ministério</p>
-                    <p className="mt-2 text-3xl font-semibold">{usuariosSemMinisterioCount}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <UserPlus className="h-5 w-5 text-primary" />
-                    Criar acesso
-                  </CardTitle>
-                  <CardDescription>
-                    Cadastre uma pessoa. Ela recebe um convite pelo WhatsApp e cria a própria senha.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="nome-usuario">Nome completo</Label>
-                      <Input
-                        id="nome-usuario"
-                        placeholder="Ex: Ana Souza"
-                        value={newUserNome}
-                        onChange={(e) => setNewUserNome(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email-usuario">Email</Label>
-                      <Input
-                        id="email-usuario"
-                        type="email"
-                        placeholder="ana@email.com"
-                        value={newUserEmail}
-                        onChange={(e) => setNewUserEmail(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="telefone-usuario">WhatsApp</Label>
-                      <Input
-                        id="telefone-usuario"
-                        type="tel"
-                        placeholder="(11) 98765-4321"
-                        value={newUserTelefone}
-                        onChange={(e) => setNewUserTelefone(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <Button className="w-full sm:w-auto" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
-                    {isCreatingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                    Criar e enviar convite
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <KeyRound className="h-5 w-5 text-primary" />
-                    Regras de acesso
-                  </CardTitle>
-                  <CardDescription>
-                    Como as permissões desta tela afetam o menu do app.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="font-medium text-foreground">Administrador</p>
-                    <p className="mt-1">Pode gerenciar usuários, membros, músicas, escalas e configurações.</p>
-                  </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="font-medium text-foreground">Acesso à OC</p>
-                    <p className="mt-1">Libera a área de Ordem de Culto sem transformar o membro em administrador.</p>
-                  </div>
-                  <div className="rounded-xl border bg-background p-4">
-                    <p className="font-medium text-foreground">Ministérios</p>
-                    <p className="mt-1">Define em quais escalas o usuário aparece como opção.</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Tab: Convites (nova forma de cadastro) */}
+          <TabsContent value="convites" className="mt-0">
+            <InvitationManagement />
           </TabsContent>
 
-          <TabsContent value="usuarios" className="mt-0">
+          {/* Tab: Usuários e Permissões */}
+          <TabsContent value="usuarios" className="mt-0 space-y-5">
+            {/* Stats rápidas */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Card className="shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Users className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-2xl font-semibold">{usuarios.length}</p>
+                    <p className="text-xs text-muted-foreground">Usuários</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-2xl font-semibold">{adminCount}</p>
+                    <p className="text-xs text-muted-foreground">Admins</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <ListOrdered className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-2xl font-semibold">{ordemCultoAccessCount}</p>
+                    <p className="text-xs text-muted-foreground">Acesso OC</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-sm">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-2xl font-semibold">{usuariosSemMinisterioCount}</p>
+                    <p className="text-xs text-muted-foreground">Sem ministério</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Regras de acesso */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <KeyRound className="h-5 w-5 text-primary" />
+                  Níveis de acesso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <p className="font-medium">Administrador</p>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">Acesso total: membros, músicas, escalas e configurações.</p>
+                  </div>
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-primary" />
+                      <p className="font-medium">Acesso à OC</p>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">Visualiza Ordem de Culto sem ser administrador.</p>
+                  </div>
+                  <div className="rounded-lg border bg-background p-3">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <p className="font-medium">Ministérios</p>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">Define em quais escalas o usuário aparece.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de usuários */}
             <Card className="shadow-md">
               <CardHeader className="gap-4 border-b bg-secondary/20 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <UserCog className="h-5 w-5 text-primary" />
-                    Usuários e permissões
+                    Usuários
                   </CardTitle>
                   <CardDescription>
-                    Abra um usuário para alterar perfil, acesso à OC e ministérios vinculados.
+                    Clique em um usuário para gerenciar permissões e ministérios.
                   </CardDescription>
                 </div>
                 <div className="relative w-full sm:max-w-xs">
@@ -697,8 +581,9 @@ export default function Configuracoes() {
             </Card>
           </TabsContent>
 
+          {/* Tab: Ministérios */}
           <TabsContent value="ministerios" className="mt-0">
-            <div className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+            <div className="grid gap-5 lg:grid-cols-[400px_minmax(0,1fr)]">
               <Card className="shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
@@ -725,7 +610,7 @@ export default function Configuracoes() {
                       }}
                     />
                   </div>
-                  <Button className="w-full" onClick={handleCreateSetor} disabled={isCreatingSetor}>
+                  <Button className="w-full" variant="gradient" onClick={handleCreateSetor} disabled={isCreatingSetor}>
                     {isCreatingSetor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     Criar ministério
                   </Button>
@@ -769,8 +654,17 @@ export default function Configuracoes() {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Tab: Integrações (Spotify, YouTube) */}
+          <TabsContent value="integracoes" className="mt-0">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <SpotifySettings />
+              <YouTubeSettings />
+            </div>
+          </TabsContent>
         </Tabs>
 
+        {/* Dialog: Gerenciar usuário */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-2xl">
             <DialogHeader>
@@ -785,7 +679,7 @@ export default function Configuracoes() {
                 <span>{selectedUsuario ? selectedUsuario.nome : 'Gerenciar usuário'}</span>
               </DialogTitle>
               <DialogDescription>
-                Ajuste o nível de acesso e os ministérios vinculados a este usuário.
+                Ajuste o nível de acesso e os ministérios vinculados.
               </DialogDescription>
             </DialogHeader>
             {selectedUsuario && (

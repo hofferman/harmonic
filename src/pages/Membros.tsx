@@ -2,19 +2,21 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
-import { criarConvite, normalizarTelefoneConvite } from '@/lib/convite';
+import { normalizarTelefoneConvite } from '@/lib/convite';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2, Phone } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, Music, Pencil, Check, X, Loader2, Phone, BellOff, Search, Settings } from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
+import { Link } from 'react-router-dom';
 
 interface MembroFuncao {
   id: string;
@@ -30,6 +32,7 @@ interface Membro {
   id: string;
   nome: string;
   telefone?: string | null;
+  receber_avisos?: boolean;
   created_at: string;
   must_change_password?: boolean;
   role?: 'admin' | 'membro';
@@ -37,8 +40,9 @@ interface Membro {
   setores: Setor[];
 }
 
-
-// Exibe o WhatsApp guardado (55 + DDD + número) como (11) 98765-4321.
+// Guarda so digitos no formato internacional (55 + DDD + numero), que e o
+// que a Evolution API espera. A tela aceita o numero digitado de qualquer
+// jeito e normaliza aqui.
 const formatarTelefone = (tel?: string | null): string => {
   if (!tel) return '';
   const d = tel.replace(/\D/g, '').replace(/^55/, '');
@@ -60,6 +64,14 @@ const FUNCOES_DISPONIVEIS = [
   'Técnico de Som',
 ];
 
+const getInitials = (name: string) =>
+  name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
 export default function Membros() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -70,33 +82,31 @@ export default function Membros() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Add function dialog
-  const [isAddFuncaoOpen, setIsAddFuncaoOpen] = useState(false);
-  const [isAddSetorOpen, setIsAddSetorOpen] = useState(false);
-  const [isCreateSetorOpen, setIsCreateSetorOpen] = useState(false);
+  // Membro selecionado para edição
   const [selectedMembro, setSelectedMembro] = useState<Membro | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Edição de nome
+  const [editingNome, setEditingNome] = useState('');
+  const [isSavingNome, setIsSavingNome] = useState(false);
+  
+  // Edição de telefone
+  const [editingTelefone, setEditingTelefone] = useState('');
+  const [isSavingTelefone, setIsSavingTelefone] = useState(false);
+  
+  // Funções
   const [novaFuncao, setNovaFuncao] = useState('');
+  const [isAddingFuncao, setIsAddingFuncao] = useState(false);
+  
+  // Setores
   const [novoSetorId, setNovoSetorId] = useState('');
-  const [novoSetorNome, setNovoSetorNome] = useState('');
-  const [isCreatingSetor, setIsCreatingSetor] = useState(false);
-
-  // Edit name
-  const [editingNomeId, setEditingNomeId] = useState<string | null>(null);
-  const [editingNomeValue, setEditingNomeValue] = useState('');
-  const [editingTelId, setEditingTelId] = useState<string | null>(null);
-  const [editingTelValue, setEditingTelValue] = useState('');
-
-  // Change role dialog
-  const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
-  const [roleMembroId, setRoleMembroId] = useState<string | null>(null);
+  const [isAddingSetor, setIsAddingSetor] = useState(false);
+  
+  // Toggle avisos
+  const [isTogglingAvisos, setIsTogglingAvisos] = useState(false);
+  
+  // Exclusão de usuário
   const [isDeletingUserId, setIsDeletingUserId] = useState<string | null>(null);
-
-  // Create user dialog
-  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
-  const [newUserNome, setNewUserNome] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserTelefone, setNewUserTelefone] = useState('');
-  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -128,13 +138,13 @@ export default function Membros() {
       // Fetch all profiles
       let { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, nome, telefone, created_at, must_change_password')
+        .select('id, nome, telefone, receber_avisos, created_at, must_change_password')
         .order('nome');
 
       if (profilesError && profilesError.message.includes('must_change_password')) {
         const fallback = await supabase
           .from('profiles')
-          .select('id, nome, telefone, created_at')
+          .select('id, nome, telefone, receber_avisos, created_at')
           .order('nome');
 
         profilesData = fallback.data?.map(profile => ({
@@ -190,9 +200,118 @@ export default function Membros() {
     }
   };
 
+  const openEditDialog = (membro: Membro) => {
+    setSelectedMembro(membro);
+    setEditingNome(membro.nome);
+    setEditingTelefone(formatarTelefone(membro.telefone));
+    setNovaFuncao('');
+    setNovoSetorId('');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveNome = async () => {
+    if (!selectedMembro) return;
+    const trimmed = editingNome.trim();
+    if (!trimmed || trimmed === selectedMembro.nome) return;
+
+    setIsSavingNome(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nome: trimmed })
+        .eq('id', selectedMembro.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Nome atualizado!' });
+      clearPageCache('membros');
+      fetchMembros();
+      setSelectedMembro({ ...selectedMembro, nome: trimmed });
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingNome(false);
+    }
+  };
+
+  const handleSaveTelefone = async () => {
+    if (!selectedMembro) return;
+    const bruto = editingTelefone.trim();
+
+    // campo vazio remove o telefone (a pessoa deixa de receber aviso)
+    const valor = bruto === '' ? null : normalizarTelefoneConvite(bruto);
+    if (bruto !== '' && valor === null) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Use DDD + número, ex: (11) 98765-4321.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSavingTelefone(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ telefone: valor })
+        .eq('id', selectedMembro.id)
+        .select('id');
+
+      if (error) throw error;
+      // RLS bloqueia em silêncio: sem linha afetada, não foi salvo.
+      if (!data || data.length === 0) {
+        throw new Error('Não foi possível salvar o WhatsApp. Verifique suas permissões.');
+      }
+
+      toast({ title: valor ? 'Telefone salvo!' : 'Telefone removido.' });
+      clearPageCache('membros');
+      fetchMembros();
+      setSelectedMembro({ ...selectedMembro, telefone: valor });
+      setEditingTelefone(formatarTelefone(valor));
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSavingTelefone(false);
+    }
+  };
+
+  const handleToggleAvisos = async () => {
+    if (!selectedMembro) return;
+    const atual = selectedMembro.receber_avisos !== false;
+
+    setIsTogglingAvisos(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ receber_avisos: !atual })
+        .eq('id', selectedMembro.id);
+
+      if (error) throw error;
+
+      toast({
+        title: !atual ? 'Avisos ativados' : 'Avisos desativados',
+        description: !atual
+          ? 'Esta pessoa voltará a receber aviso de escala.'
+          : 'Esta pessoa não receberá mais aviso de escala.',
+      });
+      clearPageCache('membros');
+      fetchMembros();
+      setSelectedMembro({ ...selectedMembro, receber_avisos: !atual });
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsTogglingAvisos(false);
+    }
+  };
+
   const handleAddFuncao = async () => {
     if (!selectedMembro || !novaFuncao) return;
 
+    setIsAddingFuncao(true);
     try {
       const { error } = await supabase.from('membros_funcoes').insert({
         profile_id: selectedMembro.id,
@@ -202,75 +321,17 @@ export default function Membros() {
       if (error) throw error;
 
       toast({ title: 'Função adicionada!' });
-      setIsAddFuncaoOpen(false);
       setNovaFuncao('');
-      setSelectedMembro(null);
       clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleAddSetor = async () => {
-    if (!selectedMembro || !novoSetorId) return;
-
-    try {
-      const { error } = await supabase.from('membros_setores').insert({
-        profile_id: selectedMembro.id,
-        setor_id: novoSetorId,
-      });
-
-      if (error) throw error;
-
-      toast({ title: 'Ministério adicionado!' });
-      setIsAddSetorOpen(false);
-      setNovoSetorId('');
-      setSelectedMembro(null);
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: any) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleCreateSetor = async () => {
-    const nome = novoSetorNome.trim();
-    if (!nome) {
-      toast({
-        title: 'Informe o nome',
-        description: 'Digite o nome do ministério.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCreatingSetor(true);
-    try {
-      const { error } = await supabase.from('setores').insert({ nome });
-      if (error) throw error;
-
-      toast({ title: 'Ministério criado!' });
-      setIsCreateSetorOpen(false);
-      setNovoSetorNome('');
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao criar ministério',
         description: error.message,
         variant: 'destructive',
       });
     } finally {
-      setIsCreatingSetor(false);
+      setIsAddingFuncao(false);
     }
   };
 
@@ -291,12 +352,40 @@ export default function Membros() {
     }
   };
 
-  const handleRemoveSetor = async (profileId: string, setorId: string) => {
+  const handleAddSetor = async () => {
+    if (!selectedMembro || !novoSetorId) return;
+
+    setIsAddingSetor(true);
+    try {
+      const { error } = await supabase.from('membros_setores').insert({
+        profile_id: selectedMembro.id,
+        setor_id: novoSetorId,
+      });
+
+      if (error) throw error;
+
+      toast({ title: 'Ministério adicionado!' });
+      setNovoSetorId('');
+      clearPageCache('membros');
+      fetchMembros();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingSetor(false);
+    }
+  };
+
+  const handleRemoveSetor = async (setorId: string) => {
+    if (!selectedMembro) return;
     try {
       const { error } = await supabase
         .from('membros_setores')
         .delete()
-        .eq('profile_id', profileId)
+        .eq('profile_id', selectedMembro.id)
         .eq('setor_id', setorId);
 
       if (error) throw error;
@@ -310,150 +399,6 @@ export default function Membros() {
         description: error.message,
         variant: 'destructive',
       });
-    }
-  };
-
-  const handleEditTelefone = async (membroId: string) => {
-    const bruto = editingTelValue.trim();
-    // campo vazio remove o WhatsApp
-    const valor = bruto === '' ? null : normalizarTelefoneConvite(bruto);
-    if (bruto !== '' && valor === null) {
-      toast({
-        title: 'WhatsApp inválido',
-        description: 'Use DDD + número, ex: (11) 98765-4321.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ telefone: valor })
-        .eq('id', membroId)
-        .select('id');
-
-      if (error) throw error;
-      // RLS bloqueia em silêncio: sem linha afetada, não foi salvo.
-      if (!data || data.length === 0) {
-        throw new Error('Não foi possível salvar o WhatsApp. Verifique suas permissões.');
-      }
-
-      toast({ title: valor ? 'WhatsApp salvo!' : 'WhatsApp removido.' });
-      setEditingTelId(null);
-      setEditingTelValue('');
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: unknown) {
-      toast({ title: 'Erro', description: (error as Error).message, variant: 'destructive' });
-    }
-  };
-
-  const handleEditNome = async (membroId: string) => {
-    const trimmed = editingNomeValue.trim();
-    if (!trimmed) return;
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ nome: trimmed })
-        .eq('id', membroId);
-
-      if (error) throw error;
-
-      toast({ title: 'Nome atualizado!' });
-      setEditingNomeId(null);
-      setEditingNomeValue('');
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: any) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleChangeRole = async (newRole: 'admin' | 'membro') => {
-    if (!roleMembroId) return;
-
-    try {
-      // Delete existing role
-      await supabase.from('user_roles').delete().eq('user_id', roleMembroId);
-
-      // Insert new role
-      const { error } = await supabase.from('user_roles').insert({
-        user_id: roleMembroId,
-        role: newRole,
-      });
-
-      if (error) throw error;
-
-      toast({ title: 'Permissão alterada!' });
-      setIsChangeRoleOpen(false);
-      setRoleMembroId(null);
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: any) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleCreateUser = async () => {
-    const nome = newUserNome.trim();
-    const email = newUserEmail.trim().toLowerCase();
-    const telefone = normalizarTelefoneConvite(newUserTelefone);
-
-    if (!nome || !email || !newUserTelefone.trim()) {
-      toast({
-        title: 'Preencha os dados',
-        description: 'Nome, email e WhatsApp são obrigatórios.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!telefone) {
-      toast({
-        title: 'WhatsApp inválido',
-        description: 'Use DDD + número, ex: (11) 98765-4321.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCreatingUser(true);
-    try {
-      const resultado = await criarConvite({ nome, email, telefone });
-
-      if (resultado.whatsappNaFila) {
-        toast({ title: 'Convite na fila para envio pelo WhatsApp' });
-      } else {
-        toast({
-          title: 'Convite criado, mas não entrou na fila do WhatsApp',
-          description: `${resultado.erroWhatsapp ?? ''} Link: ${resultado.inviteUrl}`,
-          variant: 'destructive',
-        });
-      }
-      setIsCreateUserOpen(false);
-      setNewUserNome('');
-      setNewUserEmail('');
-      setNewUserTelefone('');
-      clearPageCache('membros');
-      fetchMembros();
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao criar convite',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingUser(false);
     }
   };
 
@@ -475,6 +420,8 @@ export default function Membros() {
       if (error) throw error;
 
       toast({ title: 'Usuário excluído!' });
+      setIsEditDialogOpen(false);
+      setSelectedMembro(null);
       clearPageCache('membros');
       fetchMembros();
     } catch (error: any) {
@@ -490,9 +437,27 @@ export default function Membros() {
     }
   };
 
+  // Atualiza o membro selecionado quando os dados mudam
+  useEffect(() => {
+    if (selectedMembro) {
+      const updated = membros.find((m) => m.id === selectedMembro.id);
+      if (updated) {
+        setSelectedMembro(updated);
+      }
+    }
+  }, [membros]);
+
   const filteredMembros = membros.filter(m =>
     m.nome.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const availableSetoresForSelected = selectedMembro
+    ? setores.filter((s) => !selectedMembro.setores.some((ms) => ms.id === s.id))
+    : [];
+
+  const availableFuncoesForSelected = selectedMembro
+    ? FUNCOES_DISPONIVEIS.filter((f) => !selectedMembro.funcoes.some((mf) => mf.funcao === f))
+    : [];
 
   if (authLoading) {
     return (
@@ -504,114 +469,101 @@ export default function Membros() {
 
   return (
     <AppLayout>
-      <div className="px-3 py-4 sm:p-4 lg:p-8 space-y-5 sm:space-y-6 max-w-4xl mx-auto">
+      <div className="px-3 py-4 sm:p-4 lg:p-8 max-w-5xl mx-auto space-y-5">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-fade-in">
-          <div className="min-w-0">
-            <h1 className="text-2xl lg:text-3xl font-serif font-bold text-foreground">
-              Membros
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie os membros, seus ministérios e funções
-            </p>
+        <div className="animate-fade-in">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+                  Membros
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  Gerencie dados, funções e ministérios dos membros
+                </p>
+              </div>
+            </div>
+            <Link to="/configuracoes">
+              <Button variant="outline" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Convidar / Permissões
+              </Button>
+            </Link>
           </div>
         </div>
 
         {/* Search */}
-        <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="animate-slide-up relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar membro..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:max-w-sm"
+            className="pl-9 w-full sm:max-w-sm"
           />
         </div>
 
         {/* Members List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {isLoading ? (
             <>
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-24 w-full" />
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
               ))}
             </>
           ) : filteredMembros.length === 0 ? (
-            <Card className="border-0 shadow-lg">
+            <Card className="shadow-md">
               <CardContent className="py-12 text-center">
                 <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
                 <h3 className="text-lg font-semibold mb-2">Nenhum membro encontrado</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Comece convidando pessoas para o Harmonic.
+                </p>
+                <Link to="/configuracoes">
+                  <Button variant="gradient">
+                    <Plus className="h-4 w-4" />
+                    Convidar pessoas
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ) : (
-            filteredMembros.map((membro, index) => (
-              <Card
-                key={membro.id}
-                className="border-0 shadow-md animate-slide-up"
-                style={{ animationDelay: `${(index + 2) * 0.1}s` }}
-              >
-                <CardContent className="p-3 sm:p-4 lg:p-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
-                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-medium shrink-0 ${
-                        membro.role === 'admin' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-secondary text-secondary-foreground'
-                      }`}>
-                        {membro.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
+            <Card className="shadow-md">
+              <CardHeader className="border-b bg-secondary/20">
+                <CardTitle className="text-lg">
+                  {filteredMembros.length} membro{filteredMembros.length !== 1 ? 's' : ''}
+                </CardTitle>
+                <CardDescription>
+                  Clique em um membro para editar seus dados e funções
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 divide-y">
+                {filteredMembros.map((membro) => {
+                  const isSelf = membro.id === user?.id;
+                  return (
+                    <button
+                      key={membro.id}
+                      type="button"
+                      onClick={() => openEditDialog(membro)}
+                      className="w-full flex items-center gap-4 px-4 py-4 text-left transition-colors hover:bg-secondary/20 sm:px-6"
+                    >
+                      <Avatar className={`h-11 w-11 ${membro.role === 'admin' ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                        <AvatarFallback className={`text-sm font-semibold ${membro.role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
+                          {getInitials(membro.nome)}
+                        </AvatarFallback>
+                      </Avatar>
+                      
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {editingNomeId === membro.id ? (
-                            <div className="flex w-full items-center gap-1 sm:w-auto">
-                              <Input
-                                value={editingNomeValue}
-                                onChange={(e) => setEditingNomeValue(e.target.value)}
-                                className="h-8 min-w-0 flex-1 sm:w-48"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleEditNome(membro.id);
-                                  if (e.key === 'Escape') setEditingNomeId(null);
-                                }}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-7 h-7 text-green-500"
-                                onClick={() => handleEditNome(membro.id)}
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-7 h-7 text-destructive"
-                                onClick={() => setEditingNomeId(null)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <h3
-                              className="font-semibold text-base sm:text-lg leading-snug break-words cursor-pointer hover:text-primary transition-colors group/name"
-                              onClick={() => {
-                                setEditingNomeId(membro.id);
-                                setEditingNomeValue(membro.nome);
-                              }}
-                              title="Clique para editar o nome"
-                            >
-                              {membro.nome}
-                              <Pencil className="w-3 h-3 ml-1.5 inline opacity-0 group-hover/name:opacity-50 transition-opacity" />
-                            </h3>
-                          )}
-                          {membro.role === 'admin' ? (
-                            <Badge className="bg-primary/10 text-primary border-0">
-                              <Shield className="w-3 h-3 mr-1" />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium truncate">{membro.nome}</p>
+                          {isSelf && <Badge variant="outline">Você</Badge>}
+                          {membro.role === 'admin' && (
+                            <Badge className="border-0 bg-primary/10 text-primary gap-1">
+                              <Shield className="h-3 w-3" />
                               Admin
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">
-                              <User className="w-3 h-3 mr-1" />
-                              Membro
                             </Badge>
                           )}
                           {membro.must_change_password && (
@@ -621,349 +573,259 @@ export default function Membros() {
                           )}
                         </div>
                         
-                        {/* WhatsApp: número para convite e aviso de escala */}
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          {editingTelId === membro.id ? (
-                            <div className="flex w-full items-center gap-1 sm:w-auto">
-                              <Input
-                                value={editingTelValue}
-                                onChange={(e) => setEditingTelValue(e.target.value)}
-                                placeholder="(11) 98765-4321"
-                                inputMode="tel"
-                                className="h-8 min-w-0 flex-1 sm:w-44"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleEditTelefone(membro.id);
-                                  if (e.key === 'Escape') setEditingTelId(null);
-                                }}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-7 h-7 text-green-500"
-                                onClick={() => handleEditTelefone(membro.id)}
-                              >
-                                <Check className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-7 h-7 text-destructive"
-                                onClick={() => setEditingTelId(null)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors group/tel"
-                              onClick={() => {
-                                setEditingTelId(membro.id);
-                                setEditingTelValue(formatarTelefone(membro.telefone));
-                              }}
-                              title="Clique para editar o WhatsApp"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                              {membro.telefone ? (
-                                <span>{formatarTelefone(membro.telefone)}</span>
-                              ) : (
-                                <span className="italic">Adicionar WhatsApp</span>
-                              )}
-                              <Pencil className="w-3 h-3 opacity-0 group-hover/tel:opacity-50 transition-opacity" />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Functions */}
-                        <div className="mt-3">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ministérios</p>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {membro.setores.map((setor) => (
-                              <Badge
-                                key={setor.id}
-                                variant="secondary"
-                                className="pl-2 pr-1 py-1 gap-1 group max-w-full"
-                              >
-                                <Users className="w-3 h-3" />
-                                <span className="truncate">{setor.nome}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-4 h-4 ml-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-transparent"
-                                  onClick={() => handleRemoveSetor(membro.id, setor.id)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {membro.funcoes.length > 0 ? (
+                            membro.funcoes.slice(0, 3).map(funcao => (
+                              <Badge key={funcao.id} variant="outline" className="gap-1">
+                                <Music className="h-3 w-3" />
+                                {funcao.funcao}
                               </Badge>
-                            ))}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => {
-                                setSelectedMembro(membro);
-                                setNovoSetorId('');
-                                setIsAddSetorOpen(true);
-                              }}
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Ministério
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {membro.funcoes.map(funcao => (
-                            <Badge
-                              key={funcao.id}
-                              variant="outline"
-                              className="pl-2 pr-1 py-1 gap-1 group max-w-full"
-                            >
-                              <Music className="w-3 h-3" />
-                              <span className="truncate">{funcao.funcao}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="w-4 h-4 ml-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-transparent"
-                                onClick={() => handleRemoveFuncao(funcao.id)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </Badge>
-                          ))}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={() => {
-                              setSelectedMembro(membro);
-                              setIsAddFuncaoOpen(true);
-                            }}
-                          >
-                            <Plus className="w-3 h-3 mr-1" />
-                            Função
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {membro.id !== user?.id && (
-                      <div className="flex flex-col gap-2 sm:flex-row md:justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                          onClick={() => {
-                            setRoleMembroId(membro.id);
-                            setIsChangeRoleOpen(true);
-                          }}
-                        >
-                          Alterar Permissão
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteUser(membro)}
-                          disabled={isDeletingUserId === membro.id}
-                        >
-                          {isDeletingUserId === membro.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            ))
                           ) : (
-                            <Trash2 className="w-4 h-4 mr-2" />
+                            <span className="text-xs text-muted-foreground">Sem função definida</span>
                           )}
-                          Excluir
-                        </Button>
+                          {membro.funcoes.length > 3 && (
+                            <Badge variant="outline">+{membro.funcoes.length - 3}</Badge>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                      
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  );
+                })}
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        {/* Add Function Dialog */}
-        <Dialog open={isAddFuncaoOpen} onOpenChange={setIsAddFuncaoOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
+        {/* Edit Member Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setSelectedMembro(null);
+          }
+        }}>
+          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="font-serif">
-                Adicionar Função para {selectedMembro?.nome}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Função</Label>
-                <Select value={novaFuncao} onValueChange={setNovaFuncao}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma função..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FUNCOES_DISPONIVEIS.map(f => (
-                      <SelectItem key={f} value={f}>
-                        {f}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button className="w-full" variant="gradient" onClick={handleAddFuncao}>
-                Adicionar
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isAddSetorOpen} onOpenChange={setIsAddSetorOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-serif">
-                Adicionar Ministério para {selectedMembro?.nome}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Ministério</Label>
-                <Select value={novoSetorId} onValueChange={setNovoSetorId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um ministério..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {setores
-                      .filter((setor) => !selectedMembro?.setores.some((item) => item.id === setor.id))
-                      .map((setor) => (
-                        <SelectItem key={setor.id} value={setor.id}>
-                          {setor.nome}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button className="w-full" variant="gradient" onClick={handleAddSetor}>
-                Adicionar
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isCreateSetorOpen} onOpenChange={setIsCreateSetorOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-serif">Criar Ministério</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="novo-setor-nome">Nome do ministério</Label>
-                <Input
-                  id="novo-setor-nome"
-                  value={novoSetorNome}
-                  onChange={(event) => setNovoSetorNome(event.target.value)}
-                  placeholder="Ex: Farol, Acesso, Infantil..."
-                  disabled={isCreatingSetor}
-                />
-              </div>
-              <Button className="w-full" variant="gradient" onClick={handleCreateSetor} disabled={isCreatingSetor}>
-                {isCreatingSetor ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    Criando...
-                  </>
-                ) : (
-                  'Criar ministério'
+              <DialogTitle className="flex items-center gap-3 text-xl">
+                {selectedMembro && (
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className={`text-sm font-semibold ${selectedMembro.role === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
+                      {getInitials(selectedMembro.nome)}
+                    </AvatarFallback>
+                  </Avatar>
                 )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Create User Dialog */}
-        <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-serif">Criar usuário</DialogTitle>
+                Editar membro
+              </DialogTitle>
+              <DialogDescription>
+                Atualize os dados, funções e ministérios deste membro.
+              </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="rounded-md border bg-secondary/40 p-3 text-sm text-muted-foreground">
-                A pessoa recebe um convite pelo WhatsApp e cria a própria senha.
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-user-nome">Nome</Label>
-                <Input
-                  id="new-user-nome"
-                  value={newUserNome}
-                  onChange={(event) => setNewUserNome(event.target.value)}
-                  placeholder="Nome completo"
-                  disabled={isCreatingUser}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-user-email">Email</Label>
-                <Input
-                  id="new-user-email"
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(event) => setNewUserEmail(event.target.value)}
-                  placeholder="usuario@email.com"
-                  disabled={isCreatingUser}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-user-telefone">WhatsApp</Label>
-                <Input
-                  id="new-user-telefone"
-                  type="tel"
-                  value={newUserTelefone}
-                  onChange={(event) => setNewUserTelefone(event.target.value)}
-                  placeholder="(11) 98765-4321"
-                  disabled={isCreatingUser}
-                />
-              </div>
-              <Button className="w-full" variant="gradient" onClick={handleCreateUser} disabled={isCreatingUser}>
-                {isCreatingUser ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    Enviando convite...
-                  </>
-                ) : (
-                  'Criar e enviar convite'
+
+            {selectedMembro && (
+              <div className="space-y-6 mt-4">
+                {/* Nome */}
+                <div className="space-y-2">
+                  <Label>Nome</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={editingNome}
+                      onChange={(e) => setEditingNome(e.target.value)}
+                      placeholder="Nome completo"
+                      disabled={isSavingNome}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSaveNome}
+                      disabled={isSavingNome || editingNome.trim() === selectedMembro.nome}
+                    >
+                      {isSavingNome ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* WhatsApp */}
+                <div className="space-y-2">
+                  <Label>WhatsApp</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={editingTelefone}
+                      onChange={(e) => setEditingTelefone(e.target.value)}
+                      placeholder="(11) 98765-4321"
+                      inputMode="tel"
+                      disabled={isSavingTelefone}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleSaveTelefone}
+                      disabled={isSavingTelefone}
+                    >
+                      {isSavingTelefone ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Usado para enviar avisos de escala pelo WhatsApp
+                  </p>
+                </div>
+
+                {/* Avisos */}
+                {selectedMembro.telefone && (
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center gap-3">
+                      {selectedMembro.receber_avisos === false ? (
+                        <BellOff className="h-5 w-5 text-amber-600" />
+                      ) : (
+                        <Phone className="h-5 w-5 text-primary" />
+                      )}
+                      <div>
+                        <p className="font-medium">
+                          {selectedMembro.receber_avisos === false ? 'Avisos desativados' : 'Recebe avisos de escala'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedMembro.receber_avisos === false
+                            ? 'Esta pessoa não receberá avisos no WhatsApp'
+                            : 'Receberá mensagem automática quando escalado'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToggleAvisos}
+                      disabled={isTogglingAvisos}
+                    >
+                      {isTogglingAvisos ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : selectedMembro.receber_avisos === false ? (
+                        'Ativar'
+                      ) : (
+                        'Desativar'
+                      )}
+                    </Button>
+                  </div>
                 )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Change Role Dialog */}
-        <Dialog open={isChangeRoleOpen} onOpenChange={setIsChangeRoleOpen}>
-          <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="font-serif">Alterar Permissão</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <p className="text-muted-foreground">
-                Escolha o nível de acesso para este membro:
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col gap-2"
-                  onClick={() => handleChangeRole('membro')}
-                >
-                  <User className="w-6 h-6" />
-                  <span className="font-medium">Membro</span>
-                  <span className="text-xs text-muted-foreground">Apenas visualização</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col gap-2"
-                  onClick={() => handleChangeRole('admin')}
-                >
-                  <Shield className="w-6 h-6" />
-                  <span className="font-medium">Admin</span>
-                  <span className="text-xs text-muted-foreground">Acesso completo</span>
-                </Button>
+                {/* Ministérios */}
+                <div className="space-y-3">
+                  <Label>Ministérios</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedMembro.setores.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">Nenhum ministério vinculado</span>
+                    ) : (
+                      selectedMembro.setores.map((setor) => (
+                        <Badge key={setor.id} variant="secondary" className="gap-1 pl-2 pr-1 py-1.5">
+                          <Users className="h-3 w-3" />
+                          <span>{setor.nome}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 ml-1 text-destructive hover:text-destructive hover:bg-transparent"
+                            onClick={() => handleRemoveSetor(setor.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                  {availableSetoresForSelected.length > 0 && (
+                    <div className="flex gap-2">
+                      <Select value={novoSetorId} onValueChange={setNovoSetorId}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Adicionar ministério..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableSetoresForSelected.map((setor) => (
+                            <SelectItem key={setor.id} value={setor.id}>
+                              {setor.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleAddSetor}
+                        disabled={!novoSetorId || isAddingSetor}
+                      >
+                        {isAddingSetor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Funções musicais */}
+                <div className="space-y-3">
+                  <Label>Funções musicais</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedMembro.funcoes.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">Nenhuma função definida</span>
+                    ) : (
+                      selectedMembro.funcoes.map((funcao) => (
+                        <Badge key={funcao.id} variant="outline" className="gap-1 pl-2 pr-1 py-1.5">
+                          <Music className="h-3 w-3" />
+                          <span>{funcao.funcao}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 ml-1 text-destructive hover:text-destructive hover:bg-transparent"
+                            onClick={() => handleRemoveFuncao(funcao.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                  {availableFuncoesForSelected.length > 0 && (
+                    <div className="flex gap-2">
+                      <Select value={novaFuncao} onValueChange={setNovaFuncao}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Adicionar função..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableFuncoesForSelected.map((funcao) => (
+                            <SelectItem key={funcao} value={funcao}>
+                              {funcao}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleAddFuncao}
+                        disabled={!novaFuncao || isAddingFuncao}
+                      >
+                        {isAddingFuncao ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ações */}
+                {selectedMembro.id !== user?.id && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteUser(selectedMembro)}
+                      disabled={isDeletingUserId === selectedMembro.id}
+                    >
+                      {isDeletingUserId === selectedMembro.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Excluir usuário
+                    </Button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

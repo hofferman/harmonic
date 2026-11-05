@@ -1,6 +1,7 @@
 -- WhatsApp por membro: usado no convite e no aviso de escala.
 -- IF NOT EXISTS: a coluna já existe em produção (criada fora das migrations).
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telefone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS receber_avisos BOOLEAN NOT NULL DEFAULT true;
 
 -- Admin edita nome e WhatsApp de outros membros. Sem esta policy, o UPDATE de terceiros
 -- falha em silêncio (0 linhas). Policy de UPDATE é permissiva e soma com
@@ -28,4 +29,4 @@ CREATE POLICY "Admins can update profiles"
 REVOKE ALL ON public.profiles FROM anon, authenticated;
 GRANT SELECT ON public.profiles TO authenticated;
 GRANT INSERT ON public.profiles TO authenticated;
-GRANT UPDATE (nome, telefone, must_change_password) ON public.profiles TO authenticated;
+GRANT UPDATE (nome, telefone, must_change_password, receber_avisos) ON public.profiles TO authenticated;
