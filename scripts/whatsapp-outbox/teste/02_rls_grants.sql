@@ -63,3 +63,20 @@ RESET ROLE;
 \echo --- P: contagens finais (esperado: fila 1 e convite tok123 ainda existe)
 SELECT count(*) AS fila_final FROM public.whatsapp_outbox;
 SELECT count(*) AS convite_tok123 FROM public.invitations WHERE token = 'tok123';
+
+-- Perfis: WhatsApp de membro (migration 20261104020000)
+INSERT INTO public.profiles (id, nome) VALUES ('00000000-0000-0000-0000-00000000aaaa','Admin'), ('00000000-0000-0000-0000-00000000bbbb','Membro');
+\echo --- Q: membro edita WhatsApp de outro (admin) (esperado: UPDATE 0)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+UPDATE public.profiles SET telefone = '5511900000001' WHERE id = '00000000-0000-0000-0000-00000000aaaa';
+RESET ROLE;
+\echo --- R: admin edita WhatsApp de membro (esperado: UPDATE 1)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000aaaa',false);
+UPDATE public.profiles SET telefone = '5511988311767' WHERE id = '00000000-0000-0000-0000-00000000bbbb';
+RESET ROLE;
+\echo --- S: membro edita o próprio WhatsApp (esperado: UPDATE 1)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+UPDATE public.profiles SET telefone = '5511977776666' WHERE id = '00000000-0000-0000-0000-00000000bbbb';
+RESET ROLE;
+\echo --- T: valor gravado (esperado: membro com 5511977776666, admin com NULL)
+SELECT nome, telefone FROM public.profiles ORDER BY nome;
