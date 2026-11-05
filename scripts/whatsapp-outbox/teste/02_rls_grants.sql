@@ -95,3 +95,7 @@ RESET ROLE;
 SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
 UPDATE public.profiles SET must_change_password = false WHERE id = '00000000-0000-0000-0000-00000000bbbb';
 RESET ROLE;
+\echo --- Y: membro desliga o próprio aviso de escala (esperado: UPDATE 1, migration 20261104030000)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+UPDATE public.profiles SET receber_avisos = false WHERE id = '00000000-0000-0000-0000-00000000bbbb';
+RESET ROLE;

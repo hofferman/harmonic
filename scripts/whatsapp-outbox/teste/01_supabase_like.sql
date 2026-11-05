@@ -18,6 +18,7 @@ CREATE TABLE public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id),
   nome text NOT NULL,
   telefone text,
+  receber_avisos boolean NOT NULL DEFAULT true,
   must_change_password boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
