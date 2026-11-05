@@ -102,7 +102,9 @@ ${inviteUrl}
 
 _Este convite expira em 7 dias._
 
-Dúvidas? Entre em contato com a equipe de louvor.`;
+Dúvidas? Entre em contato com a equipe de louvor.
+
+_Mensagem automática — não é necessário responder._`;
 
     const { data: fila, error: filaError } = await adminClient
       .from('whatsapp_outbox')
