@@ -444,36 +444,6 @@ export type Database = {
         }
         Relationships: []
       }
-      spotify_tokens: {
-        Row: {
-          id: string
-          access_token: string
-          refresh_token: string
-          expires_at: string
-          spotify_user_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          access_token: string
-          refresh_token: string
-          expires_at: string
-          spotify_user_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          access_token?: string
-          refresh_token?: string
-          expires_at?: string
-          spotify_user_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       escala_playlists: {
         Row: {
           id: string
