@@ -113,7 +113,8 @@ BEGIN
   END IF;
   
   -- Check if email already registered
-  IF EXISTS (SELECT 1 FROM auth.users WHERE email = v_inv.email) THEN
+  -- Alias obrigatório: sem ele, "email" conflita com a coluna de RETURNS TABLE (erro em runtime).
+  IF EXISTS (SELECT 1 FROM auth.users au WHERE au.email = v_inv.email) THEN
     RETURN QUERY SELECT 
       v_inv.id, v_inv.email, v_inv.nome, v_inv.telefone,
       FALSE, 'Email já cadastrado no sistema'::TEXT;
@@ -126,9 +127,16 @@ BEGIN
 END;
 $$;
 
--- Grant execute to service role for Edge Functions
+-- Permissões: PostgreSQL concede EXECUTE a PUBLIC por padrão, e o Supabase concede a anon
+-- e authenticated. Revoga antes de liberar.
+-- generate_invitation_token: só a Edge Function (service_role) gera tokens.
+REVOKE ALL ON FUNCTION public.generate_invitation_token() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.generate_invitation_token() TO service_role;
-GRANT EXECUTE ON FUNCTION public.validate_invitation(TEXT) TO service_role;
+
+-- validate_invitation: chamada pela tela /aceitar-convite antes do login (anon).
+-- Só devolve dados para quem tem o token (256 bits).
+REVOKE ALL ON FUNCTION public.validate_invitation(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.validate_invitation(TEXT) TO anon, authenticated, service_role;
 
 COMMENT ON TABLE public.invitations IS 'Convites para novos usuários enviados por WhatsApp';
 COMMENT ON COLUMN public.invitations.token IS 'Token único e seguro para aceitar o convite';

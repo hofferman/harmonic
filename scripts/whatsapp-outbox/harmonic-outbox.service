@@ -1,0 +1,9 @@
+[Unit]
+Description=Envia a fila de WhatsApp do Harmonic (whatsapp_outbox)
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/harmonic-outbox.env
+ExecStart=/usr/bin/python3 /opt/harmonic/scripts/whatsapp-outbox/enviar_fila.py
+User=root

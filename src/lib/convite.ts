@@ -2,7 +2,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type ResultadoConvite = {
   inviteUrl: string;
-  whatsappEnviado: boolean;
+  // true = a mensagem entrou na fila (whatsapp_outbox); o envio real é feito pelo host depois.
+  whatsappNaFila: boolean;
   erroWhatsapp?: string;
 };
 
@@ -59,10 +60,10 @@ export async function criarConvite(params: {
   if (sendError) {
     return {
       inviteUrl,
-      whatsappEnviado: false,
+      whatsappNaFila: false,
       erroWhatsapp: await mensagemDeErro(sendError, 'Falha ao enviar pelo WhatsApp.'),
     };
   }
 
-  return { inviteUrl, whatsappEnviado: true };
+  return { inviteUrl, whatsappNaFila: true };
 }

@@ -193,11 +193,11 @@ export default function Configuracoes() {
     try {
       const resultado = await criarConvite({ nome, email, telefone });
 
-      if (resultado.whatsappEnviado) {
-        toast({ title: 'Convite enviado pelo WhatsApp!' });
+      if (resultado.whatsappNaFila) {
+        toast({ title: 'Convite na fila para envio pelo WhatsApp' });
       } else {
         toast({
-          title: 'Convite criado, mas o WhatsApp não foi enviado',
+          title: 'Convite criado, mas não entrou na fila do WhatsApp',
           description: `${resultado.erroWhatsapp ?? ''} Link: ${resultado.inviteUrl}`,
           variant: 'destructive',
         });

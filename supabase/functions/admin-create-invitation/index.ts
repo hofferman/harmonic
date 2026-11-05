@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 
 // Formato internacional 55 + DDD + número (12 ou 13 dígitos).
 // 10–11 dígitos = DDD + número, sem código do país: prefixa 55.
@@ -15,7 +15,8 @@ const normalizarTelefone = (bruto: string): string | null => {
 
 // Percorre todas as páginas de usuários (listUsers devolve no máximo perPage por chamada).
 const emailJaCadastrado = async (
-  admin: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  admin: SupabaseClient<any, any, any>,
   email: string,
 ): Promise<boolean> => {
   const perPage = 1000;
