@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clearPageCache } from '@/lib/pageCache';
-import { criarConvite, telefoneConviteValido } from '@/lib/convite';
+import { criarConvite, normalizarTelefoneConvite } from '@/lib/convite';
 import {
   Settings,
   UserPlus,
@@ -169,9 +169,9 @@ export default function Configuracoes() {
   const handleCreateUser = async () => {
     const nome = newUserNome.trim();
     const email = newUserEmail.trim().toLowerCase();
-    const telefone = newUserTelefone.replace(/\D/g, '');
+    const telefone = normalizarTelefoneConvite(newUserTelefone);
 
-    if (!nome || !email || !telefone) {
+    if (!nome || !email || !newUserTelefone.trim()) {
       toast({
         title: 'Preencha os dados',
         description: 'Nome, email e WhatsApp são obrigatórios.',
@@ -180,7 +180,7 @@ export default function Configuracoes() {
       return;
     }
 
-    if (!telefoneConviteValido(telefone)) {
+    if (!telefone) {
       toast({
         title: 'WhatsApp inválido',
         description: 'Use DDD + número, ex: (11) 98765-4321.',

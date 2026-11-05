@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { criarConvite, telefoneConviteValido } from '@/lib/convite';
+import { criarConvite, normalizarTelefoneConvite } from '@/lib/convite';
 import { useToast } from '@/hooks/use-toast';
 import { Users, Plus, Trash2, Shield, User, Music, Pencil, Check, X, UserPlus, Loader2 } from 'lucide-react';
 import { clearPageCache, readPageCache, writePageCache } from '@/lib/pageCache';
@@ -359,9 +359,9 @@ export default function Membros() {
   const handleCreateUser = async () => {
     const nome = newUserNome.trim();
     const email = newUserEmail.trim().toLowerCase();
-    const telefone = newUserTelefone.replace(/\D/g, '');
+    const telefone = normalizarTelefoneConvite(newUserTelefone);
 
-    if (!nome || !email || !telefone) {
+    if (!nome || !email || !newUserTelefone.trim()) {
       toast({
         title: 'Preencha os dados',
         description: 'Nome, email e WhatsApp são obrigatórios.',
@@ -370,7 +370,7 @@ export default function Membros() {
       return;
     }
 
-    if (!telefoneConviteValido(telefone)) {
+    if (!telefone) {
       toast({
         title: 'WhatsApp inválido',
         description: 'Use DDD + número, ex: (11) 98765-4321.',

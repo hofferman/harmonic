@@ -70,7 +70,7 @@ BEGIN
 END;
 $$;
 
--- Function to validate invitation (used by Edge Function)
+-- Function to validate invitation (chamada pela tela /aceitar-convite, antes do login)
 CREATE OR REPLACE FUNCTION public.validate_invitation(p_token TEXT)
 RETURNS TABLE (
   invitation_id UUID,

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Music2, Loader2, Eye, EyeOff, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { mensagemDeErro } from '@/lib/convite';
 
 type ValidationState = 'loading' | 'valid' | 'invalid' | 'error';
 
@@ -32,17 +33,7 @@ export default function AceitarConvite() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!token) {
-      setValidationState('invalid');
-      setInvalidReason('Link de convite inválido.');
-      return;
-    }
-
-    validateToken();
-  }, [token]);
-
-  const validateToken = async () => {
+  const validateToken = useCallback(async () => {
     try {
       const { data, error } = await supabase.rpc('validate_invitation', { p_token: token });
       
@@ -66,7 +57,17 @@ export default function AceitarConvite() {
       setValidationState('error');
       setInvalidReason('Erro ao validar convite. Tente novamente.');
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setValidationState('invalid');
+      setInvalidReason('Link de convite inválido.');
+      return;
+    }
+
+    validateToken();
+  }, [token, validateToken]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -95,15 +96,22 @@ export default function AceitarConvite() {
         body: { token, password },
       });
 
-      if (error) throw error;
+      // supabase-js lança erro em resposta não-2xx: a mensagem real está no corpo.
+      if (error) {
+        const mensagem = await mensagemDeErro(error, 'Erro ao criar conta.');
+        toast({ title: 'Erro', description: mensagem, variant: 'destructive' });
+        // Revalida o token para atualizar a tela (expirado, já usado, etc.)
+        validateToken();
+        return;
+      }
 
-      if (data.error) {
+      if (data?.error) {
         toast({
           title: 'Erro',
           description: data.error,
           variant: 'destructive',
         });
-        
+
         if (data.code === 'INVALID_INVITATION') {
           // Re-validate to update UI
           validateToken();
@@ -111,10 +119,17 @@ export default function AceitarConvite() {
         return;
       }
 
-      // If we got a session, set it
-      if (data.session) {
-        await supabase.auth.setSession(data.session);
+      // Conta criada, mas sem sessão: o usuário precisa entrar com a senha escolhida.
+      if (data?.requiresManualLogin || !data?.session) {
+        toast({
+          title: 'Conta criada!',
+          description: 'Faça login com seu email e a senha que você criou.',
+        });
+        navigate('/auth');
+        return;
       }
+
+      await supabase.auth.setSession(data.session);
 
       toast({
         title: 'Conta criada!',
@@ -122,11 +137,11 @@ export default function AceitarConvite() {
       });
 
       navigate('/escalas');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error accepting invitation:', error);
       toast({
         title: 'Erro ao criar conta',
-        description: error.message || 'Tente novamente.',
+        description: (error as Error)?.message || 'Tente novamente.',
         variant: 'destructive',
       });
     } finally {
