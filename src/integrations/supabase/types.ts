@@ -444,6 +444,110 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_tokens: {
+        Row: {
+          id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          spotify_user_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          spotify_user_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          access_token?: string
+          refresh_token?: string
+          expires_at?: string
+          spotify_user_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      escala_playlists: {
+        Row: {
+          id: string
+          escala_id: string
+          spotify_playlist_id: string | null
+          spotify_playlist_url: string | null
+          youtube_playlist_id: string | null
+          youtube_playlist_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          escala_id: string
+          spotify_playlist_id?: string | null
+          spotify_playlist_url?: string | null
+          youtube_playlist_id?: string | null
+          youtube_playlist_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          escala_id?: string
+          spotify_playlist_id?: string | null
+          spotify_playlist_url?: string | null
+          youtube_playlist_id?: string | null
+          youtube_playlist_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escala_playlists_escala_id_fkey"
+            columns: ["escala_id"]
+            isOneToOne: true
+            referencedRelation: "escalas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      youtube_tokens: {
+        Row: {
+          id: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          youtube_channel_id: string | null
+          youtube_channel_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          youtube_channel_id?: string | null
+          youtube_channel_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          access_token?: string
+          refresh_token?: string
+          expires_at?: string
+          youtube_channel_id?: string | null
+          youtube_channel_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

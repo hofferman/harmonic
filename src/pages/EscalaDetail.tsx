@@ -24,6 +24,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatEscalaMembroRole } from '@/lib/escalaFormat';
+import SpotifyPlaylistButton from '@/components/spotify/SpotifyPlaylistButton';
+import YouTubePlaylistButton from '@/components/youtube/YouTubePlaylistButton';
 
 interface Profile {
   id: string;
@@ -634,7 +636,19 @@ export default function EscalaDetail() {
                 {isFarolEscala ? <Users className="w-5 h-5 text-primary" /> : <Music className="w-5 h-5 text-primary" />}
                 {isFarolEscala ? 'Farol' : `Repertório (${musicas.length})`}
               </CardTitle>
-              {isAdmin && !isFarolEscala && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                {!isFarolEscala && escala && (
+                  <>
+                    <SpotifyPlaylistButton 
+                      escalaId={escala.id} 
+                      musicasCount={musicas.length}
+                    />
+                    <YouTubePlaylistButton 
+                      escalaId={escala.id}
+                    />
+                  </>
+                )}
+                {isAdmin && !isFarolEscala && (
                 <Dialog open={isAddMusicOpen} onOpenChange={setIsAddMusicOpen}>
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline" className="w-full shrink-0 sm:w-auto">
@@ -678,9 +692,9 @@ export default function EscalaDetail() {
                             <SelectValue placeholder="Selecione quem vai ministrar..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {allProfiles.map(p => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome}
+                            {membros.map(m => (
+                              <SelectItem key={m.profile_id} value={m.profile_id}>
+                                {m.profile.nome}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -697,7 +711,8 @@ export default function EscalaDetail() {
                     </div>
                   </DialogContent>
                 </Dialog>
-              )}
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isFarolEscala ? (

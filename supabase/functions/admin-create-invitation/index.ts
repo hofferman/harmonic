@@ -88,11 +88,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate secure token
-    const { data: tokenData, error: tokenError } = await adminClient.rpc('generate_invitation_token');
-    if (tokenError) throw tokenError;
-
-    const token = tokenData as string;
+    // Generate secure token directly (crypto API available in Deno)
+    const tokenBytes = new Uint8Array(32);
+    crypto.getRandomValues(tokenBytes);
+    const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Create invitation
     const { data: invitation, error: inviteError } = await adminClient
