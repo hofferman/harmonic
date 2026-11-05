@@ -22,6 +22,6 @@ em `127.0.0.1:8080` no VPS.
 
 ## Limites
 
-- Entrega de hora em hora: até 1 minuto de atraso.
+- Entrega a cada minuto: até 1 minuto de atraso, mais o tempo de envio.
 - Se a Evolution aceitar e o processo cair antes do commit, a mensagem pode ser enviada de novo.
 - A tela de Membros não mostra se a mensagem já saiu. Para conferir, consulte `whatsapp_outbox`.

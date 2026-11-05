@@ -15,7 +15,7 @@ const normalizarTelefone = (bruto: string): string | null => {
 
 // Percorre todas as páginas de usuários (listUsers devolve no máximo perPage por chamada).
 const emailJaCadastrado = async (
-  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- o tipo genérico do cliente Supabase muda com o schema; any evita acoplar
   admin: SupabaseClient<any, any, any>,
   email: string,
 ): Promise<boolean> => {

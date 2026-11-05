@@ -34,6 +34,8 @@ CREATE POLICY "Admins leem a fila de WhatsApp"
     )
   );
 
-REVOKE ALL ON public.whatsapp_outbox FROM anon;
+-- Privilégios: remove o ALL padrão do Supabase (inclui TRUNCATE) de anon e authenticated.
+REVOKE ALL ON public.whatsapp_outbox FROM anon, authenticated;
+GRANT SELECT ON public.whatsapp_outbox TO authenticated;
 
 COMMENT ON TABLE public.whatsapp_outbox IS 'Fila de mensagens de WhatsApp enviadas pelo script no host via Evolution API';

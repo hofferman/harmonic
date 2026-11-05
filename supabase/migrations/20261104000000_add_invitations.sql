@@ -25,22 +25,16 @@ CREATE INDEX invitations_pending_idx ON public.invitations (created_at DESC) WHE
 -- RLS policies
 ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
 
+-- Privilégios: o Supabase concede ALL a authenticated por padrão (inclui TRUNCATE, que RLS não bloqueia).
+-- Só SELECT e DELETE; a criação é só pela Edge Function (service_role), com normalização e checagens.
+REVOKE ALL ON public.invitations FROM anon, authenticated;
+GRANT SELECT, DELETE ON public.invitations TO authenticated;
+
 -- Admins can read all invitations
 CREATE POLICY "Admins can read invitations"
   ON public.invitations FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Admins can create invitations
-CREATE POLICY "Admins can create invitations"
-  ON public.invitations FOR INSERT
-  TO authenticated
-  WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_id = auth.uid() AND role = 'admin'

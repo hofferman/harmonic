@@ -43,3 +43,23 @@ RESET ROLE;
 \echo --- K: estado final da fila e do convite
 SELECT count(*) AS fila_total FROM public.whatsapp_outbox;
 SELECT count(*) AS convites_aceitos FROM public.invitations WHERE accepted_at IS NOT NULL;
+
+\echo --- L: membro TRUNCATE whatsapp_outbox (esperado: negado)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+TRUNCATE public.whatsapp_outbox;
+RESET ROLE;
+\echo --- M: membro TRUNCATE invitations (esperado: negado)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+TRUNCATE public.invitations;
+RESET ROLE;
+\echo --- N: admin insert invitations direto (esperado: negado, criação só pela Edge Function)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000aaaa',false);
+INSERT INTO public.invitations (token, email, nome, invited_by) VALUES ('tok-direto','d@x.com','D','00000000-0000-0000-0000-00000000aaaa');
+RESET ROLE;
+\echo --- O: membro DELETE invitations (esperado: 0 linhas, RLS)
+SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-00000000bbbb',false);
+DELETE FROM public.invitations WHERE token = 'tok123';
+RESET ROLE;
+\echo --- P: contagens finais (esperado: fila 1 e convite tok123 ainda existe)
+SELECT count(*) AS fila_final FROM public.whatsapp_outbox;
+SELECT count(*) AS convite_tok123 FROM public.invitations WHERE token = 'tok123';
