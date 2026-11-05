@@ -537,7 +537,7 @@ export default function Membros() {
                   {filteredMembros.length} membro{filteredMembros.length !== 1 ? 's' : ''}
                 </CardTitle>
                 <CardDescription>
-                  Clique em um membro para editar seus dados e funções
+                  Clique em um membro para editar nome, WhatsApp, funções e ministérios
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 divide-y">
@@ -588,6 +588,16 @@ export default function Membros() {
                             <Badge variant="outline">+{membro.funcoes.length - 3}</Badge>
                           )}
                         </div>
+
+                        {/* WhatsApp: visível no card. Clique no card abre a edição do número. */}
+                        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {membro.telefone ? (
+                            <span>{formatarTelefone(membro.telefone)}</span>
+                          ) : (
+                            <span className="italic text-primary">Adicionar WhatsApp</span>
+                          )}
+                        </p>
                       </div>
                       
                       <Pencil className="h-4 w-4 text-muted-foreground" />
